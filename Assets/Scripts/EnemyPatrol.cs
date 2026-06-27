@@ -2,10 +2,6 @@ using UnityEngine;
 
 public class EnemyPatrol : MonoBehaviour
 {
-    // ============================================
-    // VARIABLES PUBLICAS
-    // ============================================
-
     [Header("Movimiento")]
     public float velocidadPatrulla = 2f;
     public float velocidadPersecucion = 4f;
@@ -22,7 +18,6 @@ public class EnemyPatrol : MonoBehaviour
     public LayerMask capaObstaculos;
     public float distanciaDeteccionObstaculo = 1.2f;
 
-    // Variables privadas
     private Transform objetivoActual;
     private Transform jugadorDetectado;
     private Rigidbody2D rb;
@@ -34,13 +29,12 @@ public class EnemyPatrol : MonoBehaviour
     private float tiempoSinVerJugador = 0f;
     private Vector2 ultimaPosicionJugador;
     private bool mirandoDerecha = true;
-
     private bool atacando = false;
     private bool enRetroceso = false;
 
-    // ============================================
-    // START
-    // ============================================
+    // FLAG CLAVE: Recuerda si ya detectó al jugador alguna vez
+    private bool yaDetectoJugador = false;
+
     void Start()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -48,9 +42,6 @@ public class EnemyPatrol : MonoBehaviour
         objetivoActual = puntoA;
     }
 
-    // ============================================
-    // UPDATE
-    // ============================================
     void Update()
     {
         switch (estadoActual)
@@ -62,9 +53,6 @@ public class EnemyPatrol : MonoBehaviour
         }
     }
 
-    // ============================================
-    // PATRULLAR
-    // ============================================
     void Patrullar()
     {
         Vector2 direccion = (objetivoActual.position - transform.position).normalized;
@@ -95,13 +83,9 @@ public class EnemyPatrol : MonoBehaviour
             objetivoActual = (objetivoActual == puntoA) ? puntoB : puntoA;
     }
 
-    // ============================================
-    // PERSEGUIR
-    // ============================================
     void Perseguir()
     {
         if (jugadorDetectado == null) { estadoActual = Estado.Patrullando; return; }
-
         if (atacando) return;
 
         Vector2 direccion = (jugadorDetectado.position - transform.position).normalized;
@@ -118,7 +102,6 @@ public class EnemyPatrol : MonoBehaviour
             return;
         }
 
-        // SIEMPRE voltear hacia el jugador durante persecución
         if (direccion.x > 0 && !mirandoDerecha) Voltear();
         else if (direccion.x < 0 && mirandoDerecha) Voltear();
 
@@ -136,9 +119,6 @@ public class EnemyPatrol : MonoBehaviour
         ultimaPosicionJugador = jugadorDetectado.position;
     }
 
-    // ============================================
-    // BUSCAR
-    // ============================================
     void Buscar()
     {
         Vector2 direccion = (ultimaPosicionJugador - (Vector2)transform.position).normalized;
@@ -157,9 +137,6 @@ public class EnemyPatrol : MonoBehaviour
         }
     }
 
-    // ============================================
-    // ALERTA
-    // ============================================
     void Alerta()
     {
         Vector2 dirUltima = (ultimaPosicionJugador - (Vector2)transform.position).normalized;
@@ -174,25 +151,21 @@ public class EnemyPatrol : MonoBehaviour
         {
             estadoActual = Estado.Patrullando;
             jugadorDetectado = null;
+            // RESET: Ahora sí puede ser sorprendido de nuevo
+            yaDetectoJugador = false;
             tiempoSinVerJugador = 0f;
+            Debug.Log("Enemigo olvido al jugador, volviendo a patrullar");
         }
     }
 
-    // ============================================
-    // CAMPO DE VISION
-    // ============================================
     bool JugadorAlFrente(Transform jugador)
     {
         float dirEnemigo = mirandoDerecha ? 1f : -1f;
         float dirAlJugador = jugador.position.x - transform.position.x;
-
         // [SIGILO] Aqui se reducira el angulo de vision si el jugador esta en sigilo
         return Mathf.Sign(dirEnemigo) == Mathf.Sign(dirAlJugador);
     }
 
-    // ============================================
-    // LINEA DE VISION
-    // ============================================
     bool TieneLineaDeVision(Transform jugador)
     {
         Vector2 origen = (Vector2)transform.position + new Vector2(0, -0.3f);
@@ -201,27 +174,21 @@ public class EnemyPatrol : MonoBehaviour
 
         RaycastHit2D hit = Physics2D.Raycast(origen, direccion, distancia, capaObstaculos);
         Debug.DrawRay(origen, direccion * distancia, hit.collider == null ? Color.green : Color.magenta);
-
         // [SIGILO] Aqui se reducira la distancia de deteccion si el jugador esta en sigilo
         return hit.collider == null;
     }
 
-    // ============================================
-    // REACCION AL RECIBIR GOLPE
-    // ============================================
     public void AlertarPorGolpe()
     {
         if (estadoActual == Estado.Patrullando || estadoActual == Estado.Buscando)
         {
+            yaDetectoJugador = true;
             estadoActual = Estado.Alerta;
             tiempoSinVerJugador = 0f;
             Debug.Log(gameObject.name + " alertado por golpe!");
         }
     }
 
-    // ============================================
-    // VOLTEAR
-    // ============================================
     void Voltear()
     {
         mirandoDerecha = !mirandoDerecha;
@@ -230,9 +197,6 @@ public class EnemyPatrol : MonoBehaviour
         sprite.transform.localScale = escala;
     }
 
-    // ============================================
-    // CORUTINA: Pausa entre ataques
-    // ============================================
     private System.Collections.IEnumerator PausaDespuesDeAtacar()
     {
         atacando = true;
@@ -240,9 +204,6 @@ public class EnemyPatrol : MonoBehaviour
         atacando = false;
     }
 
-    // ============================================
-    // CORUTINA: Retroceder y alertar
-    // ============================================
     private System.Collections.IEnumerator RetrocederYAlertar()
     {
         enRetroceso = true;
@@ -267,21 +228,28 @@ public class EnemyPatrol : MonoBehaviour
         enRetroceso = false;
     }
 
-    // ============================================
-    // TRIGGERS
-    // ============================================
     void OnTriggerEnter2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
 
         jugadorDetectado = other.transform;
 
-        // Deteccion inicial: solo si el jugador esta al frente y hay linea de vision
-        if (JugadorAlFrente(other.transform) && TieneLineaDeVision(other.transform))
+        // Si ya lo había detectado antes, perseguir sin importar dirección
+        if (yaDetectoJugador)
         {
             estadoActual = Estado.Persiguiendo;
             tiempoSinVerJugador = 0f;
-            Debug.Log("Jugador detectado al frente!");
+            Debug.Log("Jugador redetectado - persiguiendo sin importar dirección");
+            return;
+        }
+
+        // Primera detección: solo si está al frente y hay línea de visión
+        if (JugadorAlFrente(other.transform) && TieneLineaDeVision(other.transform))
+        {
+            yaDetectoJugador = true;
+            estadoActual = Estado.Persiguiendo;
+            tiempoSinVerJugador = 0f;
+            Debug.Log("Jugador detectado al frente por primera vez!");
         }
     }
 
@@ -291,12 +259,21 @@ public class EnemyPatrol : MonoBehaviour
 
         jugadorDetectado = other.transform;
 
-        // FIX: Si YA está persiguiendo, no importa la dirección — sigue persiguiendo
+        // Si ya está persiguiendo, no interrumpir
         if (estadoActual == Estado.Persiguiendo) return;
 
-        // Solo para detección inicial desde Alerta o Patrullando
+        // Si ya lo detectó antes, retomar persecución
+        if (yaDetectoJugador)
+        {
+            estadoActual = Estado.Persiguiendo;
+            tiempoSinVerJugador = 0f;
+            return;
+        }
+
+        // Primera detección desde Alerta o Patrullando
         if (JugadorAlFrente(other.transform) && TieneLineaDeVision(other.transform))
         {
+            yaDetectoJugador = true;
             estadoActual = Estado.Persiguiendo;
             tiempoSinVerJugador = 0f;
         }
@@ -311,6 +288,6 @@ public class EnemyPatrol : MonoBehaviour
 
         estadoActual = Estado.Buscando;
         tiempoSinVerJugador = 0f;
-        Debug.Log("Jugador perdido... buscando");
+        Debug.Log("Jugador salió del rango - buscando");
     }
 }
