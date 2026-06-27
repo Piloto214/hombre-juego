@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
-using UnityEditor.Tilemaps;
 using UnityEngine;
 
 public class PlayerController : MonoBehaviour
@@ -38,16 +36,22 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private LayerMask groundLayer;
     private int idIsGrounded;
 
+    [Header("Pistola")]
+    [SerializeField] private GameObject bulletPrefab;
+    [SerializeField] private Transform firePoint;
+    [SerializeField] private float shootCooldown = 0.3f;
+    private float lastShootTime;
+
     void Start()
     {
         m_gatherinput = GetComponent<GatherInput>();
-        m_transform = GetComponent <Transform> ();
+        m_transform = GetComponent<Transform>();
         m_rigidbody2D = GetComponent<Rigidbody2D>();
-        m_animator = GetComponent <Animator> ();
+        m_animator = GetComponent<Animator>();
         idSpeed = Animator.StringToHash("Speed");
         idIsGrounded = Animator.StringToHash("isGrounded");
-        lFoot = GameObject.Find("LFoot").GetComponent <Transform> ();
-        rFoot = GameObject.Find("RFoot").GetComponent <Transform> ();
+        lFoot = GameObject.Find("LFoot").GetComponent<Transform>();
+        rFoot = GameObject.Find("RFoot").GetComponent<Transform>();
         originalGravity = m_rigidbody2D.gravityScale;
     }
 
@@ -80,14 +84,12 @@ public class PlayerController : MonoBehaviour
 
         float inputX = m_gatherinput.ValueX;
 
-        // DASH
         if (m_gatherinput.IsDashing && canDash && !isDashing && isGrounded)
         {
             StartCoroutine(Dash());
             return;
         }
 
-        // Movimiento normal
         m_rigidbody2D.linearVelocity = new Vector2(speed * inputX, m_rigidbody2D.linearVelocityY);
     }
 
@@ -96,13 +98,10 @@ public class PlayerController : MonoBehaviour
         isDashing = true;
         canDash = false;
 
-        // Direccion del dash
         float dashDirection = direction;
 
-        // Desactivar gravedad para dash recto
         m_rigidbody2D.gravityScale = 0;
 
-        // Animacion placeholder: estirar y cambiar color
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         Color originalColor = sr.color;
         sr.color = Color.cyan;
@@ -112,20 +111,16 @@ public class PlayerController : MonoBehaviour
             1f
         );
 
-        // Aplicar velocidad de dash
         m_rigidbody2D.linearVelocity = new Vector2(dashDirection * dashSpeed, 0);
 
-        // Esperar duracion
         yield return new WaitForSeconds(dashDuration);
 
-        // Restaurar
         m_rigidbody2D.gravityScale = originalGravity;
         m_rigidbody2D.linearVelocity = Vector2.zero;
         sr.color = originalColor;
 
         isDashing = false;
 
-        // Cooldown
         yield return new WaitForSeconds(dashCooldown);
         canDash = true;
     }
@@ -190,13 +185,11 @@ public class PlayerController : MonoBehaviour
             {
                 if (objetivo.gameObject == gameObject) continue;
 
-                PropVida prop = objetivo.GetComponent <PropVida> ();
+                PropVida prop = objetivo.GetComponent<PropVida>();
                 if (prop == null) continue;
                 {
                     prop.RecibirGolpe(1);
-                    Debug.Log("Atacaste: " + objetivo.name);
                 }
-
             }
             m_gatherinput.IsAttacking = false;
         }
@@ -216,19 +209,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    [Header("Pistola")]
-    [SerializeField] public GameObject bulletPrefab;
-    [SerializeField] public Transform firePoint;
-    [SerializeField] private float shootCooldown = 0.3f;
-    private float lastShootTime;
-
     private void HandleShooting()
     {
-        Debug.Log("HendleShooting - IsShooting: " + m_gatherinput.IsShooting);
-
         if (m_gatherinput.IsShooting && Time.time > lastShootTime + shootCooldown)
         {
-            Debug.Log(" ¡DISPARANDO! ");
             lastShootTime = Time.time;
             Shoot();
         }
@@ -236,38 +220,12 @@ public class PlayerController : MonoBehaviour
 
     private void Shoot()
     {
-        Debug.Log("=== SHOOT() LLAMADO ===");
+        if (bulletPrefab == null || firePoint == null) return;
 
-        if (bulletPrefab == null)
-        {
-            Debug.LogError("ERROR: bulletPrefab es NULL! Asigna el prefab en el Inspector.");
-            return;
-        }
-
-        if (firePoint == null)
-        {
-            Debug.LogError("ERROR: firePoint es NULL! Asigna el FirePoint en el Inspector.");
-            return;
-        }
-
-        Debug.Log("Creando bala...");
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
-        Debug.Log("Bala creada: " + bullet.name + " en posicion: " + firePoint.position);
-
         Bullet bulletScript = bullet.GetComponent<Bullet>();
 
-        if (bulletScript == null)
-        {
-            Debug.LogError("ERROR: La bala no tiene el script Bullet! Agregalo al prefab.");
-            return;
-        }
-
-        float shootDir = transform.localScale.x > 0 ? 1f : -1f;
-        Vector2 shootDirection = new Vector2(shootDir, 0);
-
-        Debug.Log("Disparando hacia: " + shootDirection);
+        Vector2 shootDirection = new Vector2(direction, 0);
         bulletScript.Shoot(shootDirection);
-
-        Debug.Log("=== DISPARO COMPLETADO ===");
     }
 }

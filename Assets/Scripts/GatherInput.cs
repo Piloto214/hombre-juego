@@ -26,25 +26,7 @@ public class GatherInput : MonoBehaviour
     }
 
     private void OnEnable()
-
     {
-          if (controls == null)
-    {
-        Debug.LogError("ERROR: controls es null en OnEnable!");
-        return;
-    }
-    
-    Debug.Log("OnEnable - Suscribiendo a Shoot...");
-    
-    controls.Player.Shoot.performed += StartShoot;
-    controls.Player.Shoot.canceled += StopShoot;
-    
-    // Verificar que se suscribió
-    Debug.Log("Shoot suscrito correctamente");
-    
-    controls.Player.Enable();
-
-
         controls.Player.Move.performed += StartMove;
         controls.Player.Move.canceled += StopMove;
         controls.Player.Jump.performed += StartJump;
@@ -53,15 +35,10 @@ public class GatherInput : MonoBehaviour
         controls.Player.Attack.canceled += stopAttack;
         controls.Player.Dash.performed += StartDash;
         controls.Player.Dash.canceled += StopDash;
-
-        // NUEVO: Shoot
         controls.Player.Shoot.performed += StartShoot;
         controls.Player.Shoot.canceled += StopShoot;
 
         controls.Player.Enable();
-
-
-
     }
 
     private void StartMove(InputAction.CallbackContext context)
@@ -104,7 +81,6 @@ public class GatherInput : MonoBehaviour
         _isDashing = false;
     }
 
-    // NUEVO: Shoot
     private void StartShoot(InputAction.CallbackContext context)
     {
         _isShooting = true;
@@ -118,7 +94,6 @@ public class GatherInput : MonoBehaviour
     private void OnDisable()
     {
         if (controls == null) return;
-
         controls.Player.Move.performed -= StartMove;
         controls.Player.Move.canceled -= StopMove;
         controls.Player.Jump.performed -= StartJump;
