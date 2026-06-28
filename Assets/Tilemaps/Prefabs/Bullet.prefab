@@ -177,4 +177,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   speed: 15
   damage: 1
-  lifetime: 3
+  lifetime: 0.97
