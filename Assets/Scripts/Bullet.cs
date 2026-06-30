@@ -24,6 +24,7 @@ public class Bullet : MonoBehaviour
         if (other.CompareTag("Player")) return;
         if (other.CompareTag("DetectorEnemigo")) return; // ignora la zona de detección
 
+        // Enemigos normales
         EnemyHealth enemy = other.GetComponentInParent<EnemyHealth>(); // busca también en el padre
         if (enemy != null)
         {
@@ -32,6 +33,16 @@ public class Bullet : MonoBehaviour
             return;
         }
 
+        // MINI-BOSS
+        MiniBossVida miniBoss = other.GetComponentInParent<MiniBossVida>();
+        if (miniBoss != null)
+        {
+            miniBoss.RecibirDanio(damage);
+            Destroy(gameObject);
+            return;
+        }
+
+        // Props rompibles
         PropVida prop = other.GetComponent<PropVida>();
         if (prop != null)
         {

@@ -290,4 +290,11 @@ public class EnemyPatrol : MonoBehaviour
         tiempoSinVerJugador = 0f;
         Debug.Log("Jugador salió del rango - buscando");
     }
+
+    public void AsignarWaypoints(Transform nuevoPuntoA, Transform nuevoPuntoB)
+    {
+        puntoA = nuevoPuntoA;
+        puntoB = nuevoPuntoB;
+        objetivoActual = puntoA;
+    }
 }

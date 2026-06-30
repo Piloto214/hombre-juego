@@ -183,16 +183,25 @@ public class PlayerController : MonoBehaviour
 
             foreach (Collider2D objetivo in objetivos)
             {
+                // Props rompibles
                 PropVida prop = objetivo.GetComponent<PropVida>();
                 if (prop != null)
                 {
                     prop.RecibirGolpe(1);
                 }
 
+                // Enemigos normales
                 EnemyHealth enemy = objetivo.GetComponent<EnemyHealth>();
                 if (enemy != null)
                 {
                     enemy.TakeDamage(1);
+                }
+
+                // MINI-BOSS
+                MiniBossVida miniBoss = objetivo.GetComponent<MiniBossVida>();
+                if (miniBoss != null)
+                {
+                    miniBoss.RecibirDanio(1);
                 }
             }
             m_gatherinput.IsAttacking = false;
