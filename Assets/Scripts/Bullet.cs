@@ -34,7 +34,7 @@ public class Bullet : MonoBehaviour
         }
 
         // MINI-BOSS
-        MiniBossVida miniBoss = other.GetComponentInParent<MiniBossVida>();
+        MiniBossController miniBoss = other.GetComponentInParent<MiniBossController>();
         if (miniBoss != null)
         {
             miniBoss.RecibirDanio(damage);

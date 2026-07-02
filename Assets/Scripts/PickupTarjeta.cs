@@ -4,11 +4,11 @@ public class PickupTarjeta : MonoBehaviour
 {
     [SerializeField] private float tiempoParpadeo = 0.3f;
 
-    private void OnTriggerEnter2D(Collider2D other)
+    private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (!other.CompareTag("Player")) return;
+        if (!collision.collider.CompareTag("Player")) return;
 
-        InventarioPlayer inventario = other.GetComponent<InventarioPlayer>();
+        InventarioPlayer inventario = collision.collider.GetComponent<InventarioPlayer>();
         if (inventario == null) return;
 
         inventario.RecogerTarjeta();

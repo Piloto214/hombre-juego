@@ -198,7 +198,7 @@ public class PlayerController : MonoBehaviour
                 }
 
                 // MINI-BOSS
-                MiniBossVida miniBoss = objetivo.GetComponent<MiniBossVida>();
+                MiniBossController miniBoss = objetivo.GetComponent<MiniBossController>();
                 if (miniBoss != null)
                 {
                     miniBoss.RecibirDanio(1);
