@@ -6,6 +6,8 @@ public class TazaCafe : MonoBehaviour
     [SerializeField] private float radioMancha = 1.5f;
     [SerializeField] private float duracionMancha = 2f;
 
+    public int daño = 1;
+
     private void Awake()
     {
         Destroy(gameObject, tiempoVida);
@@ -13,24 +15,20 @@ public class TazaCafe : MonoBehaviour
 
     private void OnTriggerEnter2D(Collider2D other)
     {
-        Debug.Log("Taza trigger con: " + other.name + " | Tag: " + other.tag);
-
         if (other.CompareTag("Player"))
         {
             PlayerHealth jugador = other.GetComponent<PlayerHealth>();
             if (jugador != null)
             {
-                jugador.RecibirGolpe(transform.position);
+                jugador.RecibirGolpe(transform.position, daño);
             }
             Destroy(gameObject);
         }
         else if (other.CompareTag("Ground"))
         {
-            Debug.Log("¡Taza tocó el suelo!");
             CrearMancha();
             Destroy(gameObject);
         }
-        // Si toca al boss u otra cosa, ignorar y seguir volando
     }
 
     private void CrearMancha()

@@ -19,6 +19,7 @@ public class PlayerController : MonoBehaviour
     private bool saltando = false;
     private bool botonSaltoLiberado = true;
     private int idSpeed;
+    private float multiplicadorVelocidad = 1f;
 
     [Header("Dash settings")]
     [SerializeField] private float dashSpeed = 15f;
@@ -90,7 +91,7 @@ public class PlayerController : MonoBehaviour
             return;
         }
 
-        m_rigidbody2D.linearVelocity = new Vector2(speed * inputX, m_rigidbody2D.linearVelocityY);
+        m_rigidbody2D.linearVelocity = new Vector2(speed * multiplicadorVelocidad * inputX, m_rigidbody2D.linearVelocityY);
     }
 
     private System.Collections.IEnumerator Dash()
@@ -183,25 +184,22 @@ public class PlayerController : MonoBehaviour
 
             foreach (Collider2D objetivo in objetivos)
             {
-                // Props rompibles
                 PropVida prop = objetivo.GetComponent<PropVida>();
                 if (prop != null)
                 {
                     prop.RecibirGolpe(1);
                 }
 
-                // Enemigos normales
                 EnemyHealth enemy = objetivo.GetComponent<EnemyHealth>();
                 if (enemy != null)
                 {
                     enemy.TakeDamage(1);
                 }
 
-                // MINI-BOSS
                 MiniBossController miniBoss = objetivo.GetComponent<MiniBossController>();
                 if (miniBoss != null)
                 {
-                    miniBoss.RecibirDanio(1);
+                    miniBoss.RecibirDaño(1);
                 }
             }
             m_gatherinput.IsAttacking = false;
@@ -240,5 +238,18 @@ public class PlayerController : MonoBehaviour
 
         Vector2 shootDirection = new Vector2(direction, 0);
         bulletScript.Shoot(shootDirection);
+    }
+
+    public void AplicarLentitud(float duracion, float multiplicador)
+    {
+        StopCoroutine(nameof(LentitudCoroutine));
+        StartCoroutine(LentitudCoroutine(duracion, multiplicador));
+    }
+
+    private System.Collections.IEnumerator LentitudCoroutine(float duracion, float multiplicador)
+    {
+        multiplicadorVelocidad = multiplicador;
+        yield return new WaitForSeconds(duracion);
+        multiplicadorVelocidad = 1f;
     }
 }

@@ -17,12 +17,12 @@ public class SpawnManager : MonoBehaviour
 
     private void OnEnable()
     {
-        MiniBossVida.OnMuerte += SpawnearEnemigos;
+        MiniBossController.OnMuerte += SpawnearEnemigos;
     }
 
     private void OnDisable()
     {
-        MiniBossVida.OnMuerte -= SpawnearEnemigos;
+        MiniBossController.OnMuerte -= SpawnearEnemigos;
     }
 
     private void SpawnearEnemigos()

@@ -37,7 +37,7 @@ public class Bullet : MonoBehaviour
         MiniBossController miniBoss = other.GetComponentInParent<MiniBossController>();
         if (miniBoss != null)
         {
-            miniBoss.RecibirDanio(damage);
+            miniBoss.RecibirDaño(damage);
             Destroy(gameObject);
             return;
         }

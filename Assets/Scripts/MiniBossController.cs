@@ -8,13 +8,13 @@ public class MiniBossController : MonoBehaviour
 
     [Header("Estados")]
     [SerializeField] private Estado estadoActual = Estado.TomandoCafe;
-    public enum Estado { TomandoCafe, Dialogo, Batalla, Muerto }
+    public enum Estado { TomandoCafe, Dialogo, Patrulla, Alerta, AtaqueTaza, AtaqueGuajolota, Embestida, Transformacion, Muerto }
 
     [Header("Movimiento - Patrulla")]
     [SerializeField] private Transform puntoA;
     [SerializeField] private Transform puntoB;
     [SerializeField] private float velocidadPatrulla = 1.5f;
-    [SerializeField] private float velocidadPanico = 4f;
+    [SerializeField] private float velocidadEmbestida = 4f;
     private Transform objetivoPatrulla;
     private bool mirandoDerecha = true;
 
@@ -22,35 +22,48 @@ public class MiniBossController : MonoBehaviour
     [SerializeField] private float distanciaDeteccion = 5f;
     [SerializeField] private LayerMask capaJugador;
 
-    [Header("Ataque 1: Cafe Caliente")]
+    [Header("Alerta (pausa antes de atacar)")]
+    [SerializeField] private float tiempoEsperaAlerta = 0.5f;
+
+    [Header("Ataque 1: Taza de Cafe")]
     [SerializeField] private GameObject prefabTazaCafe;
     [SerializeField] private Transform puntoLanzamiento;
-    [SerializeField] private float cooldownCafe = 2f;
-    [SerializeField] private float fuerzaLanzamiento = 8f;
-    private float tiempoUltimoCafe;
+    [SerializeField] private int danioTaza = 1;
+    [SerializeField] private float cooldownTaza = 2f;
+    [SerializeField] private float cooldownTazaFase2 = 1f;
+    [SerializeField] private float velocidadHorizontalTaza = 5f;
 
-    [Header("Ataque 3: Panico / Embestida")]
+    [Header("Ataque 2: Guajolota (fase 2)")]
+    [SerializeField] private GameObject prefabGuajolota;
+    [SerializeField] private int danioGuajolota = 2;
+    [SerializeField] private float cooldownGuajolota = 2f;
+    [SerializeField] private float cooldownGuajolotaFase2 = 1f;
+    [SerializeField] private float velocidadHorizontalGuajolota = 5f;
+    [SerializeField] private float duracionLentitud = 3f;
+    [SerializeField] private float multiplicadorLentitud = 0.5f;
+
+    [Header("Ataque 3: Embestida")]
     [SerializeField] private float duracionEmbestida = 1f;
-    private bool enEmbestida = false;
+    [SerializeField] private float multiplicadorDanioEmbestida = 2f;
 
-    [Header("Ataque 4: Zona Negacion")]
-    [SerializeField] private float radioNegacion = 2f;
-    [SerializeField] private float duracionNegacion = 2f;
-    [SerializeField] private float cooldownNegacion = 5f;
-    private float tiempoUltimaNegacion;
-    private bool zonaNegacionActiva = false;
+    [Header("Fase 2 - Transicion (grito)")]
+    [SerializeField] private bool faseDosActivada = false;
+    [SerializeField] private float duracionGrito = 1.5f;
+    [SerializeField] private int cantidadOndas = 3;
+    [SerializeField] private float radioMaximoOnda = 4f;
+    [SerializeField] private float duracionOnda = 1f;
+    [SerializeField] private Color colorOnda = new Color(1f, 0.4f, 0f, 0.8f);
+    private bool siguienteAtaqueEsTaza = true;
 
     [Header("Visual Placeholder")]
     [SerializeField] private Color colorNormal = new Color(0.6f, 0.4f, 0.2f);
     [SerializeField] private Color colorDanio = Color.white;
     [SerializeField] private Color colorPanico = new Color(1f, 0.5f, 0f);
-    [SerializeField] private Color colorNegacion = new Color(0.8f, 0f, 0f);
     [SerializeField] private float tiempoFlash = 0.1f;
 
     [Header("Drop Tarjeta")]
     [SerializeField] private GameObject tarjetaPrefab;
 
-    // Evento de muerte
     public delegate void MuerteMiniBoss();
     public static event MuerteMiniBoss OnMuerte;
 
@@ -58,6 +71,8 @@ public class MiniBossController : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private Transform jugador;
     private bool dialogoMostrado = false;
+    private Coroutine cicloCombateActivo;
+    private Vector3 posicionInicialBoss;
 
     private void Awake()
     {
@@ -66,6 +81,17 @@ public class MiniBossController : MonoBehaviour
         vidaActual = vidaMaxima;
         objetivoPatrulla = puntoA;
         spriteRenderer.color = colorNormal;
+        posicionInicialBoss = transform.position;
+    }
+
+    private void OnEnable()
+    {
+        PlayerHealth.OnRespawn += ReiniciarBoss;
+    }
+
+    private void OnDisable()
+    {
+        PlayerHealth.OnRespawn -= ReiniciarBoss;
     }
 
     private void Update()
@@ -78,8 +104,11 @@ public class MiniBossController : MonoBehaviour
             case Estado.Dialogo:
                 EstadoDialogo();
                 break;
-            case Estado.Batalla:
-                EstadoBatalla();
+            case Estado.Patrulla:
+                EstadoPatrulla();
+                break;
+            case Estado.Transformacion:
+                // Se maneja por completo en la corrutina TransicionFase2().
                 break;
             case Estado.Muerto:
                 break;
@@ -100,6 +129,22 @@ public class MiniBossController : MonoBehaviour
         DetectarJugador();
     }
 
+    private void DetectarJugador()
+    {
+        Collider2D[] colisiones = Physics2D.OverlapCircleAll(transform.position, distanciaDeteccion, capaJugador);
+
+        foreach (Collider2D col in colisiones)
+        {
+            if (col.CompareTag("Player"))
+            {
+                jugador = col.transform;
+                estadoActual = Estado.Dialogo;
+                Debug.Log("GUARDIA detecta al jugador.");
+                return;
+            }
+        }
+    }
+
     private void EstadoDialogo()
     {
         rb.linearVelocity = Vector2.zero;
@@ -118,122 +163,21 @@ public class MiniBossController : MonoBehaviour
     private void IniciarBatalla()
     {
         Debug.Log("GUARDIA: '¡Entonces asi las querias! ¡VENGA!'");
-        estadoActual = Estado.Batalla;
+        estadoActual = Estado.Patrulla;
     }
 
-    private void EstadoBatalla()
+    private void EstadoPatrulla()
     {
-        if (jugador == null) return;
-
-        float distanciaAlJugador = Vector2.Distance(transform.position, jugador.position);
-
-        if (Time.time > tiempoUltimaNegacion + cooldownNegacion && !zonaNegacionActiva)
-        {
-            ActivarZonaNegacion();
-            return;
-        }
-
-        if (distanciaAlJugador > 3f && Time.time > tiempoUltimoCafe + cooldownCafe)
-        {
-            LanzarCafe();
-            return;
-        }
-
-        if (vidaActual <= vidaMaxima / 2 && !enEmbestida)
-        {
-            spriteRenderer.color = colorPanico;
-            Embestir();
-            return;
-        }
-
         Patrullar();
-    }
 
-    private void LanzarCafe()
-    {
-        if (prefabTazaCafe == null || puntoLanzamiento == null || jugador == null) return;
-
-        tiempoUltimoCafe = Time.time;
-
-        // OFFSET: Mover el punto de spawn hacia afuera para no quedar dentro del boss
-        Vector2 direccion = (jugador.position - puntoLanzamiento.position).normalized;
-        Vector2 posicionLanzamiento = (Vector2)puntoLanzamiento.position + direccion * 0.8f;
-
-        GameObject taza = Instantiate(prefabTazaCafe, posicionLanzamiento, Quaternion.identity);
-
-        Rigidbody2D rbTaza = taza.GetComponent<Rigidbody2D>();
-        if (rbTaza != null)
+        if (jugador != null)
         {
-            rbTaza.linearVelocity = direccion * fuerzaLanzamiento;
-        }
-
-        Debug.Log("GUARDIA lanza su taza de cafe hacia " + direccion);
-    }
-
-    private void Embestir()
-    {
-        enEmbestida = true;
-        Debug.Log("GUARDIA entra en PANICO y embiste!");
-
-        StartCoroutine(EmbestidaCoroutine());
-    }
-
-    private System.Collections.IEnumerator EmbestidaCoroutine()
-    {
-        float tiempo = 0f;
-
-        while (tiempo < duracionEmbestida)
-        {
-            if (jugador == null) break;
-
-            Vector2 direccion = (jugador.position - transform.position).normalized;
-            rb.linearVelocity = new Vector2(direccion.x * velocidadPanico, rb.linearVelocity.y);
-
-            if (direccion.x > 0 && !mirandoDerecha) Voltear();
-            else if (direccion.x < 0 && mirandoDerecha) Voltear();
-
-            tiempo += Time.deltaTime;
-            yield return null;
-        }
-
-        rb.linearVelocity = Vector2.zero;
-        enEmbestida = false;
-    }
-
-    private void ActivarZonaNegacion()
-    {
-        tiempoUltimaNegacion = Time.time;
-        zonaNegacionActiva = true;
-        spriteRenderer.color = colorNegacion;
-
-        Debug.Log("GUARDIA: '¡NO PASAS SIN TARJETA!'");
-
-        StartCoroutine(ZonaNegacionCoroutine());
-    }
-
-    private System.Collections.IEnumerator ZonaNegacionCoroutine()
-    {
-        float tiempo = 0f;
-
-        while (tiempo < duracionNegacion)
-        {
-            Collider2D[] colisiones = Physics2D.OverlapCircleAll(transform.position, radioNegacion, capaJugador);
-
-            foreach (Collider2D col in colisiones)
+            float distancia = Vector2.Distance(transform.position, jugador.position);
+            if (distancia <= distanciaDeteccion)
             {
-                PlayerHealth jugadorVida = col.GetComponent<PlayerHealth>();
-                if (jugadorVida != null)
-                {
-                    jugadorVida.RecibirGolpe(transform.position);
-                }
+                IniciarCicloCombate();
             }
-
-            tiempo += Time.deltaTime;
-            yield return null;
         }
-
-        zonaNegacionActiva = false;
-        spriteRenderer.color = colorNormal;
     }
 
     private void Patrullar()
@@ -252,34 +196,200 @@ public class MiniBossController : MonoBehaviour
         }
     }
 
-    private void DetectarJugador()
+    private void IniciarCicloCombate()
     {
-        Collider2D[] colisiones = Physics2D.OverlapCircleAll(transform.position, distanciaDeteccion, capaJugador);
+        if (cicloCombateActivo != null) return;
+        cicloCombateActivo = StartCoroutine(CicloCombate());
+    }
 
-        foreach (Collider2D col in colisiones)
+    private System.Collections.IEnumerator CicloCombate()
+    {
+        while (jugador != null && estadoActual != Estado.Muerto)
         {
-            if (col.CompareTag("Player"))
+            estadoActual = Estado.Alerta;
+            rb.linearVelocity = Vector2.zero;
+            yield return new WaitForSeconds(tiempoEsperaAlerta);
+
+            if (estadoActual == Estado.Muerto) yield break;
+
+            if (!faseDosActivada)
             {
-                jugador = col.transform;
-                estadoActual = Estado.Dialogo;
-                Debug.Log("GUARDIA detecta al jugador.");
-                return;
+                yield return StartCoroutine(EjecutarAtaqueTaza());
+            }
+            else
+            {
+                if (siguienteAtaqueEsTaza)
+                    yield return StartCoroutine(EjecutarAtaqueTaza());
+                else
+                    yield return StartCoroutine(EjecutarAtaqueGuajolota());
+
+                siguienteAtaqueEsTaza = !siguienteAtaqueEsTaza;
+            }
+
+            if (estadoActual == Estado.Muerto) yield break;
+
+            yield return StartCoroutine(EjecutarEmbestida());
+
+            if (estadoActual == Estado.Muerto) yield break;
+
+            float distancia = Vector2.Distance(transform.position, jugador.position);
+            if (distancia > distanciaDeteccion)
+            {
+                estadoActual = Estado.Patrulla;
+                cicloCombateActivo = null;
+                yield break;
+            }
+        }
+
+        cicloCombateActivo = null;
+    }
+
+    private System.Collections.IEnumerator EjecutarAtaqueTaza()
+    {
+        estadoActual = Estado.AtaqueTaza;
+        LanzarTaza();
+        Debug.Log("GUARDIA lanza la taza de cafe.");
+
+        float espera = faseDosActivada ? cooldownTazaFase2 : cooldownTaza;
+        yield return new WaitForSeconds(espera);
+    }
+
+    private System.Collections.IEnumerator EjecutarAtaqueGuajolota()
+    {
+        estadoActual = Estado.AtaqueGuajolota;
+        LanzarGuajolota();
+        Debug.Log("GUARDIA lanza la guajolota.");
+
+        float espera = faseDosActivada ? cooldownGuajolotaFase2 : cooldownGuajolota;
+        yield return new WaitForSeconds(espera);
+    }
+
+    private Vector2 CalcularVelocidadParabola(Vector2 origen, Vector2 destino, float velocidadHorizontal, float gravityScaleProyectil)
+    {
+        float deltaX = destino.x - origen.x;
+        float deltaY = destino.y - origen.y;
+
+        float distanciaHorizontal = Mathf.Abs(deltaX);
+        if (distanciaHorizontal < 0.1f) distanciaHorizontal = 0.1f;
+
+        float tiempoVuelo = distanciaHorizontal / velocidadHorizontal;
+
+        float gravedad = Physics2D.gravity.y * gravityScaleProyectil;
+
+        float vx = deltaX / tiempoVuelo;
+        float vy = (deltaY - 0.5f * gravedad * tiempoVuelo * tiempoVuelo) / tiempoVuelo;
+
+        return new Vector2(vx, vy);
+    }
+
+    private void LanzarTaza()
+    {
+        if (prefabTazaCafe == null || puntoLanzamiento == null || jugador == null) return;
+
+        GameObject proyectil = Instantiate(prefabTazaCafe, puntoLanzamiento.position, Quaternion.identity);
+
+        Rigidbody2D rbProyectil = proyectil.GetComponent<Rigidbody2D>();
+        if (rbProyectil != null)
+        {
+            Vector2 velocidad = CalcularVelocidadParabola(
+                puntoLanzamiento.position,
+                jugador.position,
+                velocidadHorizontalTaza,
+                rbProyectil.gravityScale
+            );
+            rbProyectil.linearVelocity = velocidad;
+        }
+
+        TazaCafe scriptTaza = proyectil.GetComponent<TazaCafe>();
+        if (scriptTaza != null) scriptTaza.daño = danioTaza;
+    }
+
+    private void LanzarGuajolota()
+    {
+        if (prefabGuajolota == null || puntoLanzamiento == null || jugador == null) return;
+
+        GameObject proyectil = Instantiate(prefabGuajolota, puntoLanzamiento.position, Quaternion.identity);
+
+        Rigidbody2D rbProyectil = proyectil.GetComponent<Rigidbody2D>();
+        if (rbProyectil != null)
+        {
+            Vector2 velocidad = CalcularVelocidadParabola(
+                puntoLanzamiento.position,
+                jugador.position,
+                velocidadHorizontalGuajolota,
+                rbProyectil.gravityScale
+            );
+            rbProyectil.linearVelocity = velocidad;
+        }
+
+        Guajolota scriptGuajolota = proyectil.GetComponent<Guajolota>();
+        if (scriptGuajolota != null)
+        {
+            scriptGuajolota.daño = danioGuajolota;
+            scriptGuajolota.duracionLentitud = duracionLentitud;
+            scriptGuajolota.multiplicadorLentitud = multiplicadorLentitud;
+        }
+    }
+
+    private System.Collections.IEnumerator EjecutarEmbestida()
+    {
+        estadoActual = Estado.Embestida;
+        spriteRenderer.color = colorPanico;
+
+        float tiempo = 0f;
+        while (tiempo < duracionEmbestida)
+        {
+            if (jugador == null) break;
+
+            Vector2 direccion = (jugador.position - transform.position).normalized;
+            rb.linearVelocity = new Vector2(direccion.x * velocidadEmbestida, rb.linearVelocity.y);
+
+            if (direccion.x > 0 && !mirandoDerecha) Voltear();
+            else if (direccion.x < 0 && mirandoDerecha) Voltear();
+
+            tiempo += Time.deltaTime;
+            yield return null;
+        }
+
+        rb.linearVelocity = Vector2.zero;
+        spriteRenderer.color = colorNormal;
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (estadoActual != Estado.Embestida) return;
+
+        if (collision.collider.CompareTag("Player"))
+        {
+            PlayerHealth jugadorVida = collision.collider.GetComponent<PlayerHealth>();
+            if (jugadorVida != null)
+            {
+                int danioEmbestida = Mathf.RoundToInt(danioTaza * multiplicadorDanioEmbestida);
+                jugadorVida.RecibirGolpe(transform.position, danioEmbestida);
             }
         }
     }
 
-    public void RecibirDanio(int cantidad)
+    public void RecibirDaño(int cantidad)
     {
         if (estadoActual == Estado.Muerto) return;
+        if (estadoActual == Estado.TomandoCafe || estadoActual == Estado.Dialogo) return;
+        if (estadoActual == Estado.Transformacion) return; // invulnerable durante el grito de fase 2
 
         vidaActual -= cantidad;
         StartCoroutine(FlashDanio());
 
-        Debug.Log("Guardia recibio daño. Vida: " + vidaActual + "/" + vidaMaxima);
+        Debug.Log("Guardia recibio dano. Vida: " + vidaActual + "/" + vidaMaxima);
 
         if (vidaActual <= 0)
         {
             Morir();
+            return;
+        }
+
+        if (!faseDosActivada && vidaActual <= vidaMaxima / 2)
+        {
+            IniciarTransicionFase2();
         }
     }
 
@@ -287,18 +397,116 @@ public class MiniBossController : MonoBehaviour
     {
         spriteRenderer.color = colorDanio;
         yield return new WaitForSeconds(tiempoFlash);
-        spriteRenderer.color = (estadoActual == Estado.Batalla && vidaActual <= vidaMaxima / 2) ? colorPanico : colorNormal;
+        spriteRenderer.color = colorNormal;
     }
+
+    // ---------- TRANSICION A FASE 2 (grito + ondas + invulnerabilidad) ----------
+
+    private void IniciarTransicionFase2()
+    {
+        // Si el ciclo de combate normal esta corriendo (patrullando, atacando, embistiendo),
+        // lo detenemos por completo para que el boss se congele en seco.
+        if (cicloCombateActivo != null)
+        {
+            StopCoroutine(cicloCombateActivo);
+            cicloCombateActivo = null;
+        }
+
+        StartCoroutine(TransicionFase2());
+    }
+
+    private System.Collections.IEnumerator TransicionFase2()
+    {
+        estadoActual = Estado.Transformacion;
+        rb.linearVelocity = Vector2.zero;
+        spriteRenderer.color = colorPanico;
+
+        Debug.Log("GUARDIA entra en FASE 2 (grito de furia).");
+
+        StartCoroutine(GenerarOndas());
+
+        yield return new WaitForSeconds(duracionGrito);
+
+        faseDosActivada = true;
+        spriteRenderer.color = colorNormal;
+
+        // Retoma el combate normal desde Alerta (el jugador sigue detectado).
+        IniciarCicloCombate();
+    }
+
+    private System.Collections.IEnumerator GenerarOndas()
+    {
+        float intervalo = duracionGrito / cantidadOndas;
+
+        for (int i = 0; i < cantidadOndas; i++)
+        {
+            StartCoroutine(CrearOnda());
+            yield return new WaitForSeconds(intervalo);
+        }
+    }
+
+    private System.Collections.IEnumerator CrearOnda()
+    {
+        GameObject onda = new GameObject("OndaFase2");
+        onda.transform.position = transform.position;
+
+        LineRenderer lr = onda.AddComponent<LineRenderer>();
+        lr.loop = true;
+        lr.useWorldSpace = true;
+        lr.positionCount = 32;
+        lr.startWidth = 0.1f;
+        lr.endWidth = 0.1f;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = colorOnda;
+        lr.endColor = colorOnda;
+
+        float tiempo = 0f;
+        while (tiempo < duracionOnda)
+        {
+            float progreso = tiempo / duracionOnda;
+            float radioActual = Mathf.Lerp(0.2f, radioMaximoOnda, progreso);
+
+            DibujarCirculo(lr, radioActual);
+
+            Color colorActual = colorOnda;
+            colorActual.a = Mathf.Lerp(colorOnda.a, 0f, progreso);
+            lr.startColor = colorActual;
+            lr.endColor = colorActual;
+
+            tiempo += Time.deltaTime;
+            yield return null;
+        }
+
+        Destroy(onda);
+    }
+
+    private void DibujarCirculo(LineRenderer lr, float radio)
+    {
+        int segmentos = lr.positionCount;
+        for (int i = 0; i < segmentos; i++)
+        {
+            float angulo = (i / (float)segmentos) * Mathf.PI * 2f;
+            Vector3 punto = new Vector3(
+                transform.position.x + Mathf.Cos(angulo) * radio,
+                transform.position.y + Mathf.Sin(angulo) * radio,
+                0f
+            );
+            lr.SetPosition(i, punto);
+        }
+    }
+
+    // ---------- MUERTE ----------
 
     private void Morir()
     {
         estadoActual = Estado.Muerto;
         Debug.Log("GUARDIA DERROTADO.");
 
+        StopAllCoroutines();
+        cicloCombateActivo = null;
+
         SoltarTarjeta();
-
         OnMuerte?.Invoke();
-
         StartCoroutine(MuerteConEfecto());
     }
 
@@ -330,6 +538,30 @@ public class MiniBossController : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // ---------- RESPAWN DEL JUGADOR ----------
+
+    private void ReiniciarBoss()
+    {
+        if (estadoActual == Estado.Muerto) return;
+        if (estadoActual == Estado.TomandoCafe) return;
+
+        StopAllCoroutines();
+        cicloCombateActivo = null;
+
+        vidaActual = vidaMaxima;
+        faseDosActivada = false;
+        siguienteAtaqueEsTaza = true;
+
+        transform.position = posicionInicialBoss;
+        objetivoPatrulla = puntoA;
+        rb.linearVelocity = Vector2.zero;
+        spriteRenderer.color = colorNormal;
+
+        estadoActual = Estado.Patrulla;
+
+        Debug.Log("GUARDIA reiniciado: vida completa, de vuelta a patrulla.");
+    }
+
     private void Voltear()
     {
         mirandoDerecha = !mirandoDerecha;
@@ -342,8 +574,5 @@ public class MiniBossController : MonoBehaviour
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, distanciaDeteccion);
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(transform.position, radioNegacion);
     }
 }
