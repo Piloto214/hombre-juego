@@ -20,6 +20,7 @@ public class PlayerController : MonoBehaviour
     private bool botonSaltoLiberado = true;
     private int idSpeed;
     private float multiplicadorVelocidad = 1f;
+    private bool puedeControlar = true;
 
     [Header("Dash settings")]
     [SerializeField] private float dashSpeed = 15f;
@@ -70,12 +71,15 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (!isDashing)
+        if (puedeControlar)
         {
-            Move();
-            Jump();
+            if (!isDashing)
+            {
+                Move();
+                Jump();
+            }
+            Attack();
         }
-        Attack();
         CheckGround();
     }
 
@@ -251,5 +255,18 @@ public class PlayerController : MonoBehaviour
         multiplicadorVelocidad = multiplicador;
         yield return new WaitForSeconds(duracion);
         multiplicadorVelocidad = 1f;
+    }
+
+    public void AplicarHitstun(float duracion)
+    {
+        StopCoroutine(nameof(HitstunCoroutine));
+        StartCoroutine(HitstunCoroutine(duracion));
+    }
+
+    private System.Collections.IEnumerator HitstunCoroutine(float duracion)
+    {
+        puedeControlar = false;
+        yield return new WaitForSeconds(duracion);
+        puedeControlar = true;
     }
 }

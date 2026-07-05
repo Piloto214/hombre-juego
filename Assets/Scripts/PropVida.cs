@@ -7,6 +7,16 @@ public class PropVida : MonoBehaviour
     public int vida = 3;
     public bool esCarro = false;
 
+    [Header("Rejilla (Pared Falsa)")]
+    public bool esRejilla = false;
+    [Tooltip("El Collider2D que define el límite de cámara de la SIGUIENTE zona. Se activa cuando esta rejilla se rompe.")]
+    public Collider2D limiteCamaraNuevo;
+
+    [Header("Alcantarilla (Piso Rompible)")]
+    public bool esAlcantarilla = false;
+    [Tooltip("El Collider2D que define el límite de cámara de la alcantarilla. Se activa cuando este piso se rompe.")]
+    public Collider2D limiteCamaraAlcantarilla;
+
     [Header("Visual - Sprites (opcional)")]
     public Sprite spriteDanado;
     public Sprite spriteDestruido;
@@ -19,6 +29,11 @@ public class PropVida : MonoBehaviour
     private SpriteRenderer spriteRenderer;
     private Vector3 posicionLocalOriginal;
     private bool enShake = false;
+
+    // Evento estático para rejillas
+    public static event System.Action<Collider2D> OnRejillaDestruida;
+    // Evento estático para alcantarillas
+    public static event System.Action<Collider2D> OnAlcantarillaDestruida;
 
     void Start()
     {
@@ -35,6 +50,10 @@ public class PropVida : MonoBehaviour
         {
             if (esCarro)
                 AbrirCarro();
+            else if (esRejilla)
+                DestruirRejilla();
+            else if (esAlcantarilla)
+                DestruirAlcantarilla();
             else
                 Destruir();
             return;
@@ -51,7 +70,6 @@ public class PropVida : MonoBehaviour
 
     private void ActualizarOpacidad()
     {
-        // Golpe 1 (vida 3→2): alpha 0.65 — Golpe 2 (vida 2→1): alpha 0.35
         float proporcion = 1f - ((float)vidaActual / vida);
         float nuevoAlpha = Mathf.Lerp(1f, 0.15f, proporcion);
 
@@ -82,6 +100,18 @@ public class PropVida : MonoBehaviour
         if (spriteDestruido != null)
             spriteRenderer.sprite = spriteDestruido;
         Debug.Log("Carro abierto!");
+    }
+
+    private void DestruirRejilla()
+    {
+        OnRejillaDestruida?.Invoke(limiteCamaraNuevo);
+        Destroy(gameObject);
+    }
+
+    private void DestruirAlcantarilla()
+    {
+        OnAlcantarillaDestruida?.Invoke(limiteCamaraAlcantarilla);
+        Destroy(gameObject);
     }
 
     private void Destruir()

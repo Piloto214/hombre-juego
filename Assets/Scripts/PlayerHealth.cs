@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class PlayerHealth : MonoBehaviour
 {
-    public float fuerzaEmpuje = 8f;
+    public float fuerzaEmpuje = 12f;
     public float tiempoInvencible = 1f;
     public int vidas = 3;
 
@@ -10,15 +10,18 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] private Transform puntoRespawn;
     [SerializeField] private float tiempoEsperaRespawn = 1f;
 
+    [Header("Feedback de daño")]
+    [SerializeField] private float duracionHitstun = 0.25f;
+    [SerializeField] private float componenteVerticalMinimo = 0.5f;
+
     private int vidasIniciales;
     private Vector3 posicionRespawnActual;
 
     private Rigidbody2D rb;
     private SpriteRenderer sprite;
-    private bool puedeRecibirDaño = true;
+    private PlayerController controlador;
+    private bool puedeRecibirDanio = true;
 
-    // Aviso publico: cualquier script (como el boss) puede suscribirse
-    // para enterarse cuando el jugador reaparece.
     public delegate void JugadorRespawn();
     public static event JugadorRespawn OnRespawn;
 
@@ -26,6 +29,7 @@ public class PlayerHealth : MonoBehaviour
     {
         rb = GetComponent<Rigidbody2D>();
         sprite = GetComponent<SpriteRenderer>();
+        controlador = GetComponent<PlayerController>();
 
         vidasIniciales = vidas;
         posicionRespawnActual = (puntoRespawn != null) ? puntoRespawn.position : transform.position;
@@ -33,14 +37,25 @@ public class PlayerHealth : MonoBehaviour
 
     public void RecibirGolpe(Vector2 posicionEnemigo, int cantidadVidas = 1)
     {
-        if (!puedeRecibirDaño) return;
+        if (!puedeRecibirDanio) return;
 
         vidas -= cantidadVidas;
         Debug.Log("Vidas restantes: " + vidas);
 
         Vector2 direccionEmpuje = ((Vector2)transform.position - posicionEnemigo).normalized;
+
+        // Aseguramos un componente vertical minimo, para que siempre se vea
+        // el "salto hacia atras" sin importar si el golpe vino de la misma altura.
+        direccionEmpuje.y = Mathf.Max(direccionEmpuje.y, componenteVerticalMinimo);
+        direccionEmpuje.Normalize();
+
         rb.linearVelocity = Vector2.zero;
         rb.AddForce(direccionEmpuje * fuerzaEmpuje, ForceMode2D.Impulse);
+
+        if (controlador != null)
+        {
+            controlador.AplicarHitstun(duracionHitstun);
+        }
 
         StartCoroutine(InvencibilidadTemporal());
 
@@ -70,7 +85,6 @@ public class PlayerHealth : MonoBehaviour
         transform.position = posicionRespawnActual;
         rb.linearVelocity = Vector2.zero;
 
-        // Avisamos a quien este escuchando (el boss, por ejemplo) que el jugador reapareció.
         OnRespawn?.Invoke();
 
         StartCoroutine(InvencibilidadTemporal());
@@ -80,7 +94,7 @@ public class PlayerHealth : MonoBehaviour
 
     private System.Collections.IEnumerator InvencibilidadTemporal()
     {
-        puedeRecibirDaño = false;
+        puedeRecibirDanio = false;
 
         for (int i = 0; i < 5; i++)
         {
@@ -90,6 +104,6 @@ public class PlayerHealth : MonoBehaviour
             yield return new WaitForSeconds(0.1f);
         }
 
-        puedeRecibirDaño = true;
+        puedeRecibirDanio = true;
     }
 }

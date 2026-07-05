@@ -28,14 +28,14 @@ public class MiniBossController : MonoBehaviour
     [Header("Ataque 1: Taza de Cafe")]
     [SerializeField] private GameObject prefabTazaCafe;
     [SerializeField] private Transform puntoLanzamiento;
-    [SerializeField] private int danioTaza = 1;
+    [SerializeField] private int dañoTaza = 1;
     [SerializeField] private float cooldownTaza = 2f;
     [SerializeField] private float cooldownTazaFase2 = 1f;
     [SerializeField] private float velocidadHorizontalTaza = 5f;
 
     [Header("Ataque 2: Guajolota (fase 2)")]
     [SerializeField] private GameObject prefabGuajolota;
-    [SerializeField] private int danioGuajolota = 2;
+    [SerializeField] private int dañoGuajolota = 2;
     [SerializeField] private float cooldownGuajolota = 2f;
     [SerializeField] private float cooldownGuajolotaFase2 = 1f;
     [SerializeField] private float velocidadHorizontalGuajolota = 5f;
@@ -44,7 +44,8 @@ public class MiniBossController : MonoBehaviour
 
     [Header("Ataque 3: Embestida")]
     [SerializeField] private float duracionEmbestida = 1f;
-    [SerializeField] private float multiplicadorDanioEmbestida = 2f;
+    [SerializeField] private float multiplicadorDañoEmbestida = 2f;
+    [SerializeField] private int dañoContactoCuerpo = 1;
 
     [Header("Fase 2 - Transicion (grito)")]
     [SerializeField] private bool faseDosActivada = false;
@@ -57,7 +58,7 @@ public class MiniBossController : MonoBehaviour
 
     [Header("Visual Placeholder")]
     [SerializeField] private Color colorNormal = new Color(0.6f, 0.4f, 0.2f);
-    [SerializeField] private Color colorDanio = Color.white;
+    [SerializeField] private Color colorDaño = Color.white;
     [SerializeField] private Color colorPanico = new Color(1f, 0.5f, 0f);
     [SerializeField] private float tiempoFlash = 0.1f;
 
@@ -301,7 +302,7 @@ public class MiniBossController : MonoBehaviour
         }
 
         TazaCafe scriptTaza = proyectil.GetComponent<TazaCafe>();
-        if (scriptTaza != null) scriptTaza.daño = danioTaza;
+        if (scriptTaza != null) scriptTaza.daño = dañoTaza;
     }
 
     private void LanzarGuajolota()
@@ -325,7 +326,7 @@ public class MiniBossController : MonoBehaviour
         Guajolota scriptGuajolota = proyectil.GetComponent<Guajolota>();
         if (scriptGuajolota != null)
         {
-            scriptGuajolota.daño = danioGuajolota;
+            scriptGuajolota.daño = dañoGuajolota;
             scriptGuajolota.duracionLentitud = duracionLentitud;
             scriptGuajolota.multiplicadorLentitud = multiplicadorLentitud;
         }
@@ -357,17 +358,22 @@ public class MiniBossController : MonoBehaviour
 
     private void OnCollisionEnter2D(Collision2D collision)
     {
-        if (estadoActual != Estado.Embestida) return;
+        if (!collision.collider.CompareTag("Player")) return;
 
-        if (collision.collider.CompareTag("Player"))
+        PlayerHealth jugadorVida = collision.collider.GetComponent<PlayerHealth>();
+        if (jugadorVida == null) return;
+
+        if (estadoActual == Estado.Embestida)
         {
-            PlayerHealth jugadorVida = collision.collider.GetComponent<PlayerHealth>();
-            if (jugadorVida != null)
-            {
-                int danioEmbestida = Mathf.RoundToInt(danioTaza * multiplicadorDanioEmbestida);
-                jugadorVida.RecibirGolpe(transform.position, danioEmbestida);
-            }
+            int danioEmbestida = Mathf.RoundToInt(dañoTaza * multiplicadorDañoEmbestida);
+            jugadorVida.RecibirGolpe(transform.position, danioEmbestida);
         }
+        else if (estadoActual == Estado.Patrulla || estadoActual == Estado.Alerta ||
+                 estadoActual == Estado.AtaqueTaza || estadoActual == Estado.AtaqueGuajolota)
+        {
+            jugadorVida.RecibirGolpe(transform.position, dañoContactoCuerpo);
+        }
+        // TomandoCafe, Dialogo, Transformacion y Muerto: sin daño de contacto por ahora.
     }
 
     public void RecibirDaño(int cantidad)
@@ -395,7 +401,7 @@ public class MiniBossController : MonoBehaviour
 
     private System.Collections.IEnumerator FlashDanio()
     {
-        spriteRenderer.color = colorDanio;
+        spriteRenderer.color = colorDaño;
         yield return new WaitForSeconds(tiempoFlash);
         spriteRenderer.color = colorNormal;
     }
