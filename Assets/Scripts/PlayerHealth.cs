@@ -22,6 +22,10 @@ public class PlayerHealth : MonoBehaviour
     private PlayerController controlador;
     private bool puedeRecibirDanio = true;
 
+    // Propiedades para la UI
+    public int VidasActuales => vidas;
+    public int VidasMaximas => vidasIniciales;
+
     public delegate void JugadorRespawn();
     public static event JugadorRespawn OnRespawn;
 
@@ -43,9 +47,6 @@ public class PlayerHealth : MonoBehaviour
         Debug.Log("Vidas restantes: " + vidas);
 
         Vector2 direccionEmpuje = ((Vector2)transform.position - posicionEnemigo).normalized;
-
-        // Aseguramos un componente vertical minimo, para que siempre se vea
-        // el "salto hacia atras" sin importar si el golpe vino de la misma altura.
         direccionEmpuje.y = Mathf.Max(direccionEmpuje.y, componenteVerticalMinimo);
         direccionEmpuje.Normalize();
 
