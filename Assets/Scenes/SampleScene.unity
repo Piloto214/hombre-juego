@@ -1280,8 +1280,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   camaraCinemachine: {fileID: 1106202375}
-  limiteDentro: {fileID: 2080741245}
-  limiteFuera: {fileID: 1482409858}
   sizeNormal: 6
   sizeConducto: 3
   duracionTransicion: 1.5
@@ -1436,8 +1434,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   camaraCinemachine: {fileID: 1106202375}
-  limiteDentro: {fileID: 1582654730}
-  limiteFuera: {fileID: 1482409858}
   sizeNormal: 6
   sizeConducto: 3
   duracionTransicion: 1.5
@@ -29347,7 +29343,7 @@ GameObject:
   - component: {fileID: 1202678329}
   - component: {fileID: 1202678328}
   - component: {fileID: 1202678327}
-  m_Layer: 0
+  m_Layer: 8
   m_Name: Pluma
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -29721,8 +29717,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   camaraCinemachine: {fileID: 1106202375}
-  limiteDentro: {fileID: 781824379}
-  limiteFuera: {fileID: 1242228857}
   sizeNormal: 6
   sizeConducto: 3
   duracionTransicion: 1.5
@@ -32404,6 +32398,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2080741246}
   - component: {fileID: 2080741245}
+  - component: {fileID: 2080741247}
   m_Layer: 13
   m_Name: Bounds_Alcantarilla1
   m_TagString: Untagged
@@ -32477,6 +32472,21 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2080741247
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2080741244}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 229d403a421a1bd4ca9e1e6ae87eeea5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  confiner: {fileID: 1106202378}
+  limiteDentro: {fileID: 325825160}
+  limiteFuera: {fileID: 1482409858}
 --- !u!1 &2100216869
 GameObject:
   m_ObjectHideFlags: 0

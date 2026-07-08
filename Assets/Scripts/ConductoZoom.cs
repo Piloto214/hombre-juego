@@ -8,13 +8,6 @@ public class ConductoZoom : MonoBehaviour
     [Tooltip("El objeto CinemachineCamera de tu escena.")]
     public CinemachineCamera camaraCinemachine;
 
-    [Header("Límites de cámara")]
-    [Tooltip("Polígono de cámara para DENTRO del conducto (el pequeño).")]
-    public Collider2D limiteDentro;
-
-    [Tooltip("Polígono de cámara para FUERA del conducto (el grande del pasillo).")]
-    public Collider2D limiteFuera;
-
     [Header("Valores de Zoom")]
     [Tooltip("Tamaño normal de la cámara, fuera del conducto (ej. 6).")]
     public float sizeNormal = 6f;
@@ -39,8 +32,9 @@ public class ConductoZoom : MonoBehaviour
             return;
         }
 
-        // Al entrar: cambiar al límite pequeño de la alcantarilla
-        CambiarLimite(limiteDentro);
+        // Solo controlamos el zoom. El límite de cámara (Confiner2D)
+        // es responsabilidad exclusiva de CameraBoundsManager, para
+        // evitar que dos sistemas distintos se pisen entre sí.
         IniciarTransicion(sizeConducto);
     }
 
@@ -49,30 +43,7 @@ public class ConductoZoom : MonoBehaviour
         if (!other.CompareTag("Player")) return;
         if (camaraCinemachine == null) return;
 
-        // Al salir: RESTAURAR el límite grande del pasillo
-        CambiarLimite(limiteFuera);
         IniciarTransicion(sizeNormal);
-    }
-
-    private void CambiarLimite(Collider2D nuevoLimite)
-    {
-        if (nuevoLimite == null)
-        {
-            Debug.LogWarning($"[{gameObject.name}] limite es null, no se cambia el Confiner2D.");
-            return;
-        }
-
-        var confiner = camaraCinemachine.GetComponent<CinemachineConfiner2D>();
-        if (confiner == null)
-        {
-            Debug.LogError($"[{gameObject.name}] ¡La cámara no tiene CinemachineConfiner2D!", this);
-            return;
-        }
-
-        confiner.BoundingShape2D = nuevoLimite;
-        confiner.InvalidateBoundingShapeCache();
-
-        Debug.Log($"[{gameObject.name}] Confiner2D cambiado a: {nuevoLimite.name}");
     }
 
     private void IniciarTransicion(float sizeObjetivo)
