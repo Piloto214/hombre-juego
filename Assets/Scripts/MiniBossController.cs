@@ -1,9 +1,9 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 
 public class MiniBossController : MonoBehaviour
 {
     [Header("Vida")]
-    [SerializeField] private int vidaMaxima = 5;
+    [SerializeField] private int vidaMaxima = 20;
     private int vidaActual;
 
     [Header("Estados")]
@@ -53,7 +53,9 @@ public class MiniBossController : MonoBehaviour
 
     [Header("Ataque 4 (Fase 2): Salto de Impacto")]
     [SerializeField] private float duracionApuntado = 0.4f;
-    [SerializeField] private float velocidadHorizontalSalto = 6f;
+    [SerializeField] private float alturaSalto = 3f;
+    [SerializeField] private float duracionRecuperacionSalto = 1f;
+    [SerializeField] private Transform puntoTierra;
     [SerializeField] private GameObject prefabOndaSuelo;
     [SerializeField] private float velocidadOnda = 6f;
     [SerializeField] private float alcanceOnda = 4f;
@@ -178,7 +180,7 @@ public class MiniBossController : MonoBehaviour
 
     private void IniciarBatalla()
     {
-        Debug.Log("GUARDIA: '¡Entonces asi las querias! ¡VENGA!'");
+        Debug.Log("GUARDIA: 'Â¡Entonces asi las querias! Â¡VENGA!'");
         estadoActual = Estado.Patrulla;
     }
 
@@ -334,6 +336,32 @@ public class MiniBossController : MonoBehaviour
         return new Vector2(vx, vy);
     }
 
+    // Calcula la velocidad inicial del SALTO DEL BOSS usando una altura maxima deseada,
+    // en vez de derivarla de la velocidad horizontal (a diferencia de los proyectiles).
+    private Vector2 CalcularVelocidadSaltoConAltura(Vector2 origen, Vector2 destino, float alturaMaxima, float gravityScaleBoss)
+    {
+        float gravedad = Physics2D.gravity.y * gravityScaleBoss;
+
+        float vy0 = Mathf.Sqrt(-2f * gravedad * alturaMaxima);
+
+        float deltaX = destino.x - origen.x;
+
+        float a = 0.5f * gravedad;
+        float b = vy0;
+        float c = -(destino.y - origen.y);
+        float discriminante = Mathf.Max(b * b - 4f * a * c, 0f);
+        float raiz = Mathf.Sqrt(discriminante);
+
+        float t1 = (-b + raiz) / (2f * a);
+        float t2 = (-b - raiz) / (2f * a);
+        float tiempoVuelo = Mathf.Max(t1, t2);
+        if (tiempoVuelo <= 0.01f) tiempoVuelo = 0.01f;
+
+        float vx = deltaX / tiempoVuelo;
+
+        return new Vector2(vx, vy0);
+    }
+
     private void LanzarTaza()
     {
         if (prefabTazaCafe == null || puntoLanzamiento == null || jugador == null) return;
@@ -388,12 +416,18 @@ public class MiniBossController : MonoBehaviour
             yield return null;
         }
 
-        Vector2 velocidadSalto = CalcularVelocidadParabola(transform.position, objetivo, velocidadHorizontalSalto, rb.gravityScale);
+        Vector2 velocidadSalto = CalcularVelocidadSaltoConAltura(transform.position, objetivo, alturaSalto, rb.gravityScale);
         rb.linearVelocity = velocidadSalto;
 
-        float distanciaHorizontal = Mathf.Abs(objetivo.x - transform.position.x);
-        if (distanciaHorizontal < 0.1f) distanciaHorizontal = 0.1f;
-        float tiempoVuelo = distanciaHorizontal / velocidadHorizontalSalto;
+        float gravedad = Physics2D.gravity.y * rb.gravityScale;
+        float a = 0.5f * gravedad;
+        float b = velocidadSalto.y;
+        float c = -(objetivo.y - transform.position.y);
+        float discriminante = Mathf.Max(b * b - 4f * a * c, 0f);
+        float raiz = Mathf.Sqrt(discriminante);
+        float t1 = (-b + raiz) / (2f * a);
+        float t2 = (-b - raiz) / (2f * a);
+        float tiempoVuelo = Mathf.Max(t1, t2);
 
         yield return new WaitForSeconds(tiempoVuelo);
 
@@ -402,14 +436,19 @@ public class MiniBossController : MonoBehaviour
 
         GenerarOndasSuelo();
 
-        yield return new WaitForSeconds(0.2f);
+        // Pausa de recuperacion tras el impacto: el boss se queda quieto un momento,
+        // como si el propio golpe contra el suelo lo dejara aturdido brevemente.
+        rb.linearVelocity = Vector2.zero;
+        yield return new WaitForSeconds(duracionRecuperacionSalto);
     }
 
     private void GenerarOndasSuelo()
     {
         if (prefabOndaSuelo == null) return;
 
-        GameObject ondaFrente = Instantiate(prefabOndaSuelo, transform.position, Quaternion.identity);
+        Vector3 posicionSpawn = (puntoTierra != null) ? puntoTierra.position : transform.position;
+
+        GameObject ondaFrente = Instantiate(prefabOndaSuelo, posicionSpawn, Quaternion.identity);
         OndaSuelo scriptFrente = ondaFrente.GetComponent<OndaSuelo>();
         if (scriptFrente != null)
         {
@@ -419,7 +458,7 @@ public class MiniBossController : MonoBehaviour
             scriptFrente.Configurar(mirandoDerecha ? Vector2.right : Vector2.left);
         }
 
-        GameObject ondaAtras = Instantiate(prefabOndaSuelo, transform.position, Quaternion.identity);
+        GameObject ondaAtras = Instantiate(prefabOndaSuelo, posicionSpawn, Quaternion.identity);
         OndaSuelo scriptAtras = ondaAtras.GetComponent<OndaSuelo>();
         if (scriptAtras != null)
         {
@@ -559,8 +598,6 @@ public class MiniBossController : MonoBehaviour
         lr.startColor = colorOndaGrito;
         lr.endColor = colorOndaGrito;
 
-        // Red de seguridad: garantiza que la onda se destruya sola, incluso si
-        // StopAllCoroutines() (ej. al reiniciar el boss) corta esta corrutina a la mitad.
         Destroy(onda, duracionOndaGrito + 0.1f);
 
         float tiempo = 0f;

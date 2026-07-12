@@ -6,8 +6,29 @@ public class OndaSuelo : MonoBehaviour
     public float velocidad = 6f;
     public float alcance = 4f;
 
+    [Header("Visual")]
+    [SerializeField] private float anchoOnda = 1.2f;
+    [SerializeField] private float grosorLinea = 0.15f;
+    [SerializeField] private Color colorOnda = new Color(1f, 0.5f, 0f, 1f);
+
     private Vector2 origen;
     private Vector2 direccion = Vector2.right;
+    private LineRenderer lr;
+
+    private void Awake()
+    {
+        lr = gameObject.AddComponent<LineRenderer>();
+        lr.useWorldSpace = false;
+        lr.positionCount = 2;
+        lr.startWidth = grosorLinea;
+        lr.endWidth = grosorLinea;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = colorOnda;
+        lr.endColor = colorOnda;
+
+        lr.SetPosition(0, new Vector3(-anchoOnda / 2f, 0f, 0f));
+        lr.SetPosition(1, new Vector3(anchoOnda / 2f, 0f, 0f));
+    }
 
     private void Start()
     {
