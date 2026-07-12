@@ -8,7 +8,7 @@ public class MiniBossController : MonoBehaviour
 
     [Header("Estados")]
     [SerializeField] private Estado estadoActual = Estado.TomandoCafe;
-    public enum Estado { TomandoCafe, Dialogo, Patrulla, Alerta, AtaqueTaza, AtaqueGuajolota, Embestida, Transformacion, Muerto }
+    public enum Estado { TomandoCafe, Dialogo, Patrulla, Alerta, AtaqueTaza, AtaqueGuajolota, Salto, Embestida, Transformacion, Muerto }
 
     [Header("Movimiento - Patrulla")]
     [SerializeField] private Transform puntoA;
@@ -22,20 +22,25 @@ public class MiniBossController : MonoBehaviour
     [SerializeField] private float distanciaDeteccion = 5f;
     [SerializeField] private LayerMask capaJugador;
 
-    [Header("Alerta (pausa antes de atacar)")]
-    [SerializeField] private float tiempoEsperaAlerta = 0.5f;
+    [Header("Alerta y distancia de combate")]
+    [SerializeField] private float tiempoEsperaAlerta = 0.3f;
+    [SerializeField] private float toleranciaDistancia = 0.4f;
+    [SerializeField] private float velocidadReposicion = 2f;
+    [SerializeField] private float tiempoMaximoReposicion = 1.5f;
+
+    private float RangoEmbestida => velocidadEmbestida * duracionEmbestida;
 
     [Header("Ataque 1: Taza de Cafe")]
     [SerializeField] private GameObject prefabTazaCafe;
     [SerializeField] private Transform puntoLanzamiento;
-    [SerializeField] private int dañoTaza = 1;
+    [SerializeField] private int danioTaza = 1;
     [SerializeField] private float cooldownTaza = 2f;
     [SerializeField] private float cooldownTazaFase2 = 1f;
     [SerializeField] private float velocidadHorizontalTaza = 5f;
 
     [Header("Ataque 2: Guajolota (fase 2)")]
     [SerializeField] private GameObject prefabGuajolota;
-    [SerializeField] private int dañoGuajolota = 2;
+    [SerializeField] private int danioGuajolota = 2;
     [SerializeField] private float cooldownGuajolota = 2f;
     [SerializeField] private float cooldownGuajolotaFase2 = 1f;
     [SerializeField] private float velocidadHorizontalGuajolota = 5f;
@@ -44,23 +49,36 @@ public class MiniBossController : MonoBehaviour
 
     [Header("Ataque 3: Embestida")]
     [SerializeField] private float duracionEmbestida = 1f;
-    [SerializeField] private float multiplicadorDañoEmbestida = 2f;
-    [SerializeField] private int dañoContactoCuerpo = 1;
+    [SerializeField] private float multiplicadorDanioEmbestida = 2f;
 
-    [Header("Fase 2 - Transicion (grito)")]
+    [Header("Ataque 4 (Fase 2): Salto de Impacto")]
+    [SerializeField] private float duracionApuntado = 0.4f;
+    [SerializeField] private float velocidadHorizontalSalto = 6f;
+    [SerializeField] private GameObject prefabOndaSuelo;
+    [SerializeField] private float velocidadOnda = 6f;
+    [SerializeField] private float alcanceOnda = 4f;
+    [SerializeField] private int danioOnda = 1;
+
+    [Header("Contacto de cuerpo")]
+    [SerializeField] private int danioContactoCuerpo = 1;
+    [SerializeField] private float fuerzaEmpujeCuerpo = 20f;
+
+    [Header("Fase 2")]
     [SerializeField] private bool faseDosActivada = false;
-    [SerializeField] private float duracionGrito = 1.5f;
-    [SerializeField] private int cantidadOndas = 3;
-    [SerializeField] private float radioMaximoOnda = 4f;
-    [SerializeField] private float duracionOnda = 1f;
-    [SerializeField] private Color colorOnda = new Color(1f, 0.4f, 0f, 0.8f);
     private bool siguienteAtaqueEsTaza = true;
 
     [Header("Visual Placeholder")]
     [SerializeField] private Color colorNormal = new Color(0.6f, 0.4f, 0.2f);
-    [SerializeField] private Color colorDaño = Color.white;
+    [SerializeField] private Color colorDanio = Color.white;
     [SerializeField] private Color colorPanico = new Color(1f, 0.5f, 0f);
     [SerializeField] private float tiempoFlash = 0.1f;
+
+    [Header("Transicion Fase 2 (grito)")]
+    [SerializeField] private float duracionGrito = 1.5f;
+    [SerializeField] private int cantidadOndas = 3;
+    [SerializeField] private float radioMaximoOnda = 4f;
+    [SerializeField] private float duracionOndaGrito = 1f;
+    [SerializeField] private Color colorOndaGrito = new Color(1f, 0.4f, 0f, 0.8f);
 
     [Header("Drop Tarjeta")]
     [SerializeField] private GameObject tarjetaPrefab;
@@ -108,10 +126,7 @@ public class MiniBossController : MonoBehaviour
             case Estado.Patrulla:
                 EstadoPatrulla();
                 break;
-            case Estado.Transformacion:
-                // Se maneja por completo en la corrutina TransicionFase2().
-                break;
-            case Estado.Muerto:
+            default:
                 break;
         }
     }
@@ -207,9 +222,7 @@ public class MiniBossController : MonoBehaviour
     {
         while (jugador != null && estadoActual != Estado.Muerto)
         {
-            estadoActual = Estado.Alerta;
-            rb.linearVelocity = Vector2.zero;
-            yield return new WaitForSeconds(tiempoEsperaAlerta);
+            yield return StartCoroutine(EstadoAlertaConReposicion());
 
             if (estadoActual == Estado.Muerto) yield break;
 
@@ -219,6 +232,9 @@ public class MiniBossController : MonoBehaviour
             }
             else
             {
+                yield return StartCoroutine(EjecutarSaltoImpacto());
+                if (estadoActual == Estado.Muerto) yield break;
+
                 if (siguienteAtaqueEsTaza)
                     yield return StartCoroutine(EjecutarAtaqueTaza());
                 else
@@ -243,6 +259,41 @@ public class MiniBossController : MonoBehaviour
         }
 
         cicloCombateActivo = null;
+    }
+
+    private System.Collections.IEnumerator EstadoAlertaConReposicion()
+    {
+        estadoActual = Estado.Alerta;
+
+        float tiempo = 0f;
+        float rango = RangoEmbestida;
+
+        while (tiempo < tiempoMaximoReposicion)
+        {
+            if (jugador == null) break;
+
+            float distancia = Vector2.Distance(transform.position, jugador.position);
+            float diferencia = distancia - rango;
+
+            if (Mathf.Abs(diferencia) <= toleranciaDistancia)
+            {
+                break;
+            }
+
+            Vector2 direccionAlJugador = (jugador.position - transform.position).normalized;
+            float sentido = (diferencia < 0f) ? -1f : 1f;
+
+            rb.linearVelocity = new Vector2(direccionAlJugador.x * sentido * velocidadReposicion, rb.linearVelocity.y);
+
+            if (direccionAlJugador.x > 0 && !mirandoDerecha) Voltear();
+            else if (direccionAlJugador.x < 0 && mirandoDerecha) Voltear();
+
+            tiempo += Time.deltaTime;
+            yield return null;
+        }
+
+        rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+        yield return new WaitForSeconds(tiempoEsperaAlerta);
     }
 
     private System.Collections.IEnumerator EjecutarAtaqueTaza()
@@ -292,17 +343,12 @@ public class MiniBossController : MonoBehaviour
         Rigidbody2D rbProyectil = proyectil.GetComponent<Rigidbody2D>();
         if (rbProyectil != null)
         {
-            Vector2 velocidad = CalcularVelocidadParabola(
-                puntoLanzamiento.position,
-                jugador.position,
-                velocidadHorizontalTaza,
-                rbProyectil.gravityScale
-            );
+            Vector2 velocidad = CalcularVelocidadParabola(puntoLanzamiento.position, jugador.position, velocidadHorizontalTaza, rbProyectil.gravityScale);
             rbProyectil.linearVelocity = velocidad;
         }
 
         TazaCafe scriptTaza = proyectil.GetComponent<TazaCafe>();
-        if (scriptTaza != null) scriptTaza.daño = dañoTaza;
+        if (scriptTaza != null) scriptTaza.danio = danioTaza;
     }
 
     private void LanzarGuajolota()
@@ -314,21 +360,73 @@ public class MiniBossController : MonoBehaviour
         Rigidbody2D rbProyectil = proyectil.GetComponent<Rigidbody2D>();
         if (rbProyectil != null)
         {
-            Vector2 velocidad = CalcularVelocidadParabola(
-                puntoLanzamiento.position,
-                jugador.position,
-                velocidadHorizontalGuajolota,
-                rbProyectil.gravityScale
-            );
+            Vector2 velocidad = CalcularVelocidadParabola(puntoLanzamiento.position, jugador.position, velocidadHorizontalGuajolota, rbProyectil.gravityScale);
             rbProyectil.linearVelocity = velocidad;
         }
 
         Guajolota scriptGuajolota = proyectil.GetComponent<Guajolota>();
         if (scriptGuajolota != null)
         {
-            scriptGuajolota.daño = dañoGuajolota;
+            scriptGuajolota.danio = danioGuajolota;
             scriptGuajolota.duracionLentitud = duracionLentitud;
             scriptGuajolota.multiplicadorLentitud = multiplicadorLentitud;
+        }
+    }
+
+    private System.Collections.IEnumerator EjecutarSaltoImpacto()
+    {
+        estadoActual = Estado.Salto;
+        spriteRenderer.color = colorPanico;
+
+        Vector3 objetivo = transform.position;
+
+        float tiempoApuntado = 0f;
+        while (tiempoApuntado < duracionApuntado)
+        {
+            if (jugador != null) objetivo = jugador.position;
+            tiempoApuntado += Time.deltaTime;
+            yield return null;
+        }
+
+        Vector2 velocidadSalto = CalcularVelocidadParabola(transform.position, objetivo, velocidadHorizontalSalto, rb.gravityScale);
+        rb.linearVelocity = velocidadSalto;
+
+        float distanciaHorizontal = Mathf.Abs(objetivo.x - transform.position.x);
+        if (distanciaHorizontal < 0.1f) distanciaHorizontal = 0.1f;
+        float tiempoVuelo = distanciaHorizontal / velocidadHorizontalSalto;
+
+        yield return new WaitForSeconds(tiempoVuelo);
+
+        rb.linearVelocity = Vector2.zero;
+        spriteRenderer.color = colorNormal;
+
+        GenerarOndasSuelo();
+
+        yield return new WaitForSeconds(0.2f);
+    }
+
+    private void GenerarOndasSuelo()
+    {
+        if (prefabOndaSuelo == null) return;
+
+        GameObject ondaFrente = Instantiate(prefabOndaSuelo, transform.position, Quaternion.identity);
+        OndaSuelo scriptFrente = ondaFrente.GetComponent<OndaSuelo>();
+        if (scriptFrente != null)
+        {
+            scriptFrente.danio = danioOnda;
+            scriptFrente.velocidad = velocidadOnda;
+            scriptFrente.alcance = alcanceOnda;
+            scriptFrente.Configurar(mirandoDerecha ? Vector2.right : Vector2.left);
+        }
+
+        GameObject ondaAtras = Instantiate(prefabOndaSuelo, transform.position, Quaternion.identity);
+        OndaSuelo scriptAtras = ondaAtras.GetComponent<OndaSuelo>();
+        if (scriptAtras != null)
+        {
+            scriptAtras.danio = danioOnda;
+            scriptAtras.velocidad = velocidadOnda;
+            scriptAtras.alcance = alcanceOnda;
+            scriptAtras.Configurar(mirandoDerecha ? Vector2.left : Vector2.right);
         }
     }
 
@@ -365,22 +463,22 @@ public class MiniBossController : MonoBehaviour
 
         if (estadoActual == Estado.Embestida)
         {
-            int danioEmbestida = Mathf.RoundToInt(dañoTaza * multiplicadorDañoEmbestida);
-            jugadorVida.RecibirGolpe(transform.position, danioEmbestida);
+            int danioEmbestida = Mathf.RoundToInt(danioTaza * multiplicadorDanioEmbestida);
+            jugadorVida.RecibirGolpe(transform.position, danioEmbestida, fuerzaEmpujeCuerpo);
         }
         else if (estadoActual == Estado.Patrulla || estadoActual == Estado.Alerta ||
-                 estadoActual == Estado.AtaqueTaza || estadoActual == Estado.AtaqueGuajolota)
+                 estadoActual == Estado.AtaqueTaza || estadoActual == Estado.AtaqueGuajolota ||
+                 estadoActual == Estado.Salto)
         {
-            jugadorVida.RecibirGolpe(transform.position, dañoContactoCuerpo);
+            jugadorVida.RecibirGolpe(transform.position, danioContactoCuerpo, fuerzaEmpujeCuerpo);
         }
-        // TomandoCafe, Dialogo, Transformacion y Muerto: sin daño de contacto por ahora.
     }
 
-    public void RecibirDaño(int cantidad)
+    public void RecibirDanio(int cantidad)
     {
         if (estadoActual == Estado.Muerto) return;
         if (estadoActual == Estado.TomandoCafe || estadoActual == Estado.Dialogo) return;
-        if (estadoActual == Estado.Transformacion) return; // invulnerable durante el grito de fase 2
+        if (estadoActual == Estado.Transformacion) return;
 
         vidaActual -= cantidad;
         StartCoroutine(FlashDanio());
@@ -401,17 +499,13 @@ public class MiniBossController : MonoBehaviour
 
     private System.Collections.IEnumerator FlashDanio()
     {
-        spriteRenderer.color = colorDaño;
+        spriteRenderer.color = colorDanio;
         yield return new WaitForSeconds(tiempoFlash);
         spriteRenderer.color = colorNormal;
     }
 
-    // ---------- TRANSICION A FASE 2 (grito + ondas + invulnerabilidad) ----------
-
     private void IniciarTransicionFase2()
     {
-        // Si el ciclo de combate normal esta corriendo (patrullando, atacando, embistiendo),
-        // lo detenemos por completo para que el boss se congele en seco.
         if (cicloCombateActivo != null)
         {
             StopCoroutine(cicloCombateActivo);
@@ -429,29 +523,28 @@ public class MiniBossController : MonoBehaviour
 
         Debug.Log("GUARDIA entra en FASE 2 (grito de furia).");
 
-        StartCoroutine(GenerarOndas());
+        StartCoroutine(GenerarOndasGrito());
 
         yield return new WaitForSeconds(duracionGrito);
 
         faseDosActivada = true;
         spriteRenderer.color = colorNormal;
 
-        // Retoma el combate normal desde Alerta (el jugador sigue detectado).
         IniciarCicloCombate();
     }
 
-    private System.Collections.IEnumerator GenerarOndas()
+    private System.Collections.IEnumerator GenerarOndasGrito()
     {
         float intervalo = duracionGrito / cantidadOndas;
 
         for (int i = 0; i < cantidadOndas; i++)
         {
-            StartCoroutine(CrearOnda());
+            StartCoroutine(CrearOndaGrito());
             yield return new WaitForSeconds(intervalo);
         }
     }
 
-    private System.Collections.IEnumerator CrearOnda()
+    private System.Collections.IEnumerator CrearOndaGrito()
     {
         GameObject onda = new GameObject("OndaFase2");
         onda.transform.position = transform.position;
@@ -463,19 +556,23 @@ public class MiniBossController : MonoBehaviour
         lr.startWidth = 0.1f;
         lr.endWidth = 0.1f;
         lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = colorOnda;
-        lr.endColor = colorOnda;
+        lr.startColor = colorOndaGrito;
+        lr.endColor = colorOndaGrito;
+
+        // Red de seguridad: garantiza que la onda se destruya sola, incluso si
+        // StopAllCoroutines() (ej. al reiniciar el boss) corta esta corrutina a la mitad.
+        Destroy(onda, duracionOndaGrito + 0.1f);
 
         float tiempo = 0f;
-        while (tiempo < duracionOnda)
+        while (tiempo < duracionOndaGrito)
         {
-            float progreso = tiempo / duracionOnda;
+            float progreso = tiempo / duracionOndaGrito;
             float radioActual = Mathf.Lerp(0.2f, radioMaximoOnda, progreso);
 
             DibujarCirculo(lr, radioActual);
 
-            Color colorActual = colorOnda;
-            colorActual.a = Mathf.Lerp(colorOnda.a, 0f, progreso);
+            Color colorActual = colorOndaGrito;
+            colorActual.a = Mathf.Lerp(colorOndaGrito.a, 0f, progreso);
             lr.startColor = colorActual;
             lr.endColor = colorActual;
 
@@ -500,8 +597,6 @@ public class MiniBossController : MonoBehaviour
             lr.SetPosition(i, punto);
         }
     }
-
-    // ---------- MUERTE ----------
 
     private void Morir()
     {
@@ -544,8 +639,6 @@ public class MiniBossController : MonoBehaviour
         Destroy(gameObject);
     }
 
-    // ---------- RESPAWN DEL JUGADOR ----------
-
     private void ReiniciarBoss()
     {
         if (estadoActual == Estado.Muerto) return;
@@ -580,5 +673,8 @@ public class MiniBossController : MonoBehaviour
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, distanciaDeteccion);
+
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, RangoEmbestida);
     }
 }

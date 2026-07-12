@@ -6,7 +6,7 @@ public class TazaCafe : MonoBehaviour
     [SerializeField] private float radioMancha = 1.5f;
     [SerializeField] private float duracionMancha = 2f;
 
-    public int daño = 1;
+    public int danio = 1;
 
     private void Awake()
     {
@@ -20,7 +20,7 @@ public class TazaCafe : MonoBehaviour
             PlayerHealth jugador = other.GetComponent<PlayerHealth>();
             if (jugador != null)
             {
-                jugador.RecibirGolpe(transform.position, daño);
+                jugador.RecibirGolpe(transform.position, danio);
             }
             Destroy(gameObject);
         }

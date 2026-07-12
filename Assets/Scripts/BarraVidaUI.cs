@@ -6,9 +6,9 @@ public class BarraVidaUI : MonoBehaviour
     [Header("Referencia al Player")]
     public PlayerHealth playerHealth;
 
-    [Header("Configuración visual")]
-    public string caracterVidaLlena = "*";   // asterisco en vez de punto
-    public string caracterVidaVacia = "-";   // guion en vez de circulo
+    [Header("Configuracion visual")]
+    public string caracterVidaLlena = "*";
+    public string caracterVidaVacia = "-";
     public string prefijo = "VIDA: ";
 
     [Header("Referencia UI")]

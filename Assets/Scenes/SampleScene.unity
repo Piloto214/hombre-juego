@@ -1048,6 +1048,7 @@ GameObject:
   - component: {fileID: 318983244}
   - component: {fileID: 318983243}
   - component: {fileID: 318983247}
+  - component: {fileID: 318983248}
   m_Layer: 12
   m_Name: MiniBoss
   m_TagString: Untagged
@@ -1222,14 +1223,17 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 64
   tiempoEsperaAlerta: 1.5
+  toleranciaDistancia: 0.4
+  velocidadReposicion: 2
+  tiempoMaximoReposicion: 1.5
   prefabTazaCafe: {fileID: 5206768871637746629, guid: 8706e02ec0eab154a80f204b300ca9ef, type: 3}
   puntoLanzamiento: {fileID: 464078918}
-  "da\xF1oTaza": 1
+  danioTaza: 1
   cooldownTaza: 0.25
   cooldownTazaFase2: 0.15
   velocidadHorizontalTaza: 12.5
   prefabGuajolota: {fileID: 3603341714763303599, guid: 5dfbe166abfbf63419801592a297ff04, type: 3}
-  "da\xF1oGuajolota": 2
+  danioGuajolota: 2
   cooldownGuajolota: 0.2
   cooldownGuajolotaFase2: 0.15
   velocidadHorizontalGuajolota: 12.5
@@ -1237,18 +1241,40 @@ MonoBehaviour:
   multiplicadorLentitud: 0.5
   duracionEmbestida: 2
   "multiplicadorDa\xF1oEmbestida": 2
-  "da\xF1oContactoCuerpo": 1
+  duracionApuntado: 0.4
+  velocidadHorizontalSalto: 6
+  prefabOndaSuelo: {fileID: 0}
+  velocidadOnda: 6
+  alcanceOnda: 4
+  danioOnda: 1
+  danioContactoCuerpo: 1
+  fuerzaEmpujeCuerpo: 20
   faseDosActivada: 0
+  colorNormal: {r: 0.5176471, g: 0, b: 0.87843144, a: 1}
+  colorDanio: {r: 1, g: 1, b: 1, a: 1}
+  colorPanico: {r: 1, g: 0.5, b: 0, a: 1}
+  tiempoFlash: 0.1
   duracionGrito: 2.5
   cantidadOndas: 5
   radioMaximoOnda: 6
-  duracionOnda: 1
-  colorOnda: {r: 0.49019608, g: 0.09860484, b: 0, a: 0.83137256}
-  colorNormal: {r: 0.5176471, g: 0, b: 0.87843144, a: 1}
-  "colorDa\xF1o": {r: 1, g: 1, b: 1, a: 1}
-  colorPanico: {r: 1, g: 0.5, b: 0, a: 1}
-  tiempoFlash: 0.1
+  duracionOndaGrito: 1
+  colorOndaGrito: {r: 0.6037736, g: 0.51548594, b: 0.51548594, a: 0.8}
   tarjetaPrefab: {fileID: 7498079634498493751, guid: e0ba0c26df2f58242b4de3f9221abfbc, type: 3}
+--- !u!114 &318983248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 318983241}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4259f6b710d645b4781f4527eb6c5c04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  danio: 1
+  velocidad: 6
+  alcance: 4
 --- !u!1 &325825158
 GameObject:
   m_ObjectHideFlags: 0
@@ -1971,7 +1997,7 @@ Transform:
   m_GameObject: {fileID: 519420028}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 94.64828, y: -6.950225, z: -10}
+  m_LocalPosition: {x: 236.64703, y: -4.909922, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -28324,7 +28350,7 @@ Transform:
   m_GameObject: {fileID: 888978141}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -102.9, y: -19.7, z: 5.827227}
+  m_LocalPosition: {x: 39.1, y: -18.4, z: 5.827227}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -29026,7 +29052,7 @@ Transform:
   m_GameObject: {fileID: 1106202373}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -103.04444, y: -17.3, z: -4.172773}
+  m_LocalPosition: {x: 38.955566, y: -15.999998, z: -4.172773}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []

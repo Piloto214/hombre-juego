@@ -3,7 +3,6 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    //PLAYER COMPONENTS
     private Rigidbody2D m_rigidbody2D;
     private GatherInput m_gatherinput;
     private Transform m_transform;
@@ -203,7 +202,7 @@ public class PlayerController : MonoBehaviour
                 MiniBossController miniBoss = objetivo.GetComponent<MiniBossController>();
                 if (miniBoss != null)
                 {
-                    miniBoss.RecibirDaño(1);
+                    miniBoss.RecibirDanio(1);
                 }
             }
             m_gatherinput.IsAttacking = false;

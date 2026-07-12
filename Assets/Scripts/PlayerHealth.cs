@@ -10,7 +10,7 @@ public class PlayerHealth : MonoBehaviour
     [SerializeField] private Transform puntoRespawn;
     [SerializeField] private float tiempoEsperaRespawn = 1f;
 
-    [Header("Feedback de daño")]
+    [Header("Feedback de danio")]
     [SerializeField] private float duracionHitstun = 0.25f;
     [SerializeField] private float componenteVerticalMinimo = 0.5f;
 
@@ -22,12 +22,13 @@ public class PlayerHealth : MonoBehaviour
     private PlayerController controlador;
     private bool puedeRecibirDanio = true;
 
-    // Propiedades para la UI
-    public int VidasActuales => vidas;
-    public int VidasMaximas => vidasIniciales;
-
     public delegate void JugadorRespawn();
     public static event JugadorRespawn OnRespawn;
+
+    // Propiedades de solo lectura para que la UI (BarraVidaUI) pueda leer el estado
+    // actual sin poder modificarlo directamente desde afuera.
+    public int VidasActuales => vidas;
+    public int VidasMaximas => vidasIniciales;
 
     void Start()
     {
@@ -39,7 +40,7 @@ public class PlayerHealth : MonoBehaviour
         posicionRespawnActual = (puntoRespawn != null) ? puntoRespawn.position : transform.position;
     }
 
-    public void RecibirGolpe(Vector2 posicionEnemigo, int cantidadVidas = 1)
+    public void RecibirGolpe(Vector2 posicionEnemigo, int cantidadVidas = 1, float fuerzaEmpujeOverride = -1f)
     {
         if (!puedeRecibirDanio) return;
 
@@ -50,8 +51,10 @@ public class PlayerHealth : MonoBehaviour
         direccionEmpuje.y = Mathf.Max(direccionEmpuje.y, componenteVerticalMinimo);
         direccionEmpuje.Normalize();
 
+        float fuerzaUsada = (fuerzaEmpujeOverride > 0f) ? fuerzaEmpujeOverride : fuerzaEmpuje;
+
         rb.linearVelocity = Vector2.zero;
-        rb.AddForce(direccionEmpuje * fuerzaEmpuje, ForceMode2D.Impulse);
+        rb.AddForce(direccionEmpuje * fuerzaUsada, ForceMode2D.Impulse);
 
         if (controlador != null)
         {
@@ -90,7 +93,7 @@ public class PlayerHealth : MonoBehaviour
 
         StartCoroutine(InvencibilidadTemporal());
 
-        Debug.Log("Jugador reapareció con " + vidas + " vidas.");
+        Debug.Log("Jugador reapareciendo con " + vidas + " vidas.");
     }
 
     private System.Collections.IEnumerator InvencibilidadTemporal()

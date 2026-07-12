@@ -4,7 +4,7 @@ public class Guajolota : MonoBehaviour
 {
     [SerializeField] private float tiempoVida = 3f;
 
-    public int daño = 2;
+    public int danio = 2;
     public float duracionLentitud = 3f;
     public float multiplicadorLentitud = 0.5f;
 
@@ -20,7 +20,7 @@ public class Guajolota : MonoBehaviour
             PlayerHealth jugadorVida = other.GetComponent<PlayerHealth>();
             if (jugadorVida != null)
             {
-                jugadorVida.RecibirGolpe(transform.position, daño);
+                jugadorVida.RecibirGolpe(transform.position, danio);
             }
 
             PlayerController jugadorControl = other.GetComponent<PlayerController>();
