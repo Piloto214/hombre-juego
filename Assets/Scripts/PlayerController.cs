@@ -19,7 +19,12 @@ public class PlayerController : MonoBehaviour
     private bool botonSaltoLiberado = true;
     private int idSpeed;
     private float multiplicadorVelocidad = 1f;
-    private bool puedeControlar = true;
+
+    // Dos banderas independientes en vez de una sola, para que el hitstun
+    // y el bloqueo por dialogo no se pisen entre si.
+    private bool enHitstun = false;
+    private bool bloqueoExterno = false;
+    private bool PuedeControlar => !enHitstun && !bloqueoExterno;
 
     [Header("Dash settings")]
     [SerializeField] private float dashSpeed = 15f;
@@ -70,7 +75,7 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        if (puedeControlar)
+        if (PuedeControlar)
         {
             if (!isDashing)
             {
@@ -264,8 +269,21 @@ public class PlayerController : MonoBehaviour
 
     private System.Collections.IEnumerator HitstunCoroutine(float duracion)
     {
-        puedeControlar = false;
+        enHitstun = true;
         yield return new WaitForSeconds(duracion);
-        puedeControlar = true;
+        enHitstun = false;
+    }
+
+    public void BloquearControl()
+    {
+        bloqueoExterno = true;
+        // Detiene el movimiento horizontal en seco, para que no seiga
+        // deslizandose por la velocidad que ya traia antes del bloqueo.
+        m_rigidbody2D.linearVelocity = new Vector2(0f, m_rigidbody2D.linearVelocityY);
+    }
+
+    public void DesbloquearControl()
+    {
+        bloqueoExterno = false;
     }
 }

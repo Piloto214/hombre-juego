@@ -91,6 +91,7 @@ public class MiniBossController : MonoBehaviour
     private Rigidbody2D rb;
     private SpriteRenderer spriteRenderer;
     private Transform jugador;
+    private PlayerController jugadorControlador;
     private bool dialogoMostrado = false;
     private Coroutine cicloCombateActivo;
     private Vector3 posicionInicialBoss;
@@ -156,6 +157,13 @@ public class MiniBossController : MonoBehaviour
             if (col.CompareTag("Player"))
             {
                 jugador = col.transform;
+                jugadorControlador = col.GetComponent<PlayerController>();
+
+                if (jugadorControlador != null)
+                {
+                    jugadorControlador.BloquearControl();
+                }
+
                 estadoActual = Estado.Dialogo;
                 Debug.Log("GUARDIA detecta al jugador.");
                 return;
@@ -181,6 +189,12 @@ public class MiniBossController : MonoBehaviour
     private void IniciarBatalla()
     {
         Debug.Log("GUARDIA: '¡Entonces asi las querias! ¡VENGA!'");
+
+        if (jugadorControlador != null)
+        {
+            jugadorControlador.DesbloquearControl();
+        }
+
         estadoActual = Estado.Patrulla;
     }
 
@@ -336,8 +350,6 @@ public class MiniBossController : MonoBehaviour
         return new Vector2(vx, vy);
     }
 
-    // Calcula la velocidad inicial del SALTO DEL BOSS usando una altura maxima deseada,
-    // en vez de derivarla de la velocidad horizontal (a diferencia de los proyectiles).
     private Vector2 CalcularVelocidadSaltoConAltura(Vector2 origen, Vector2 destino, float alturaMaxima, float gravityScaleBoss)
     {
         float gravedad = Physics2D.gravity.y * gravityScaleBoss;
@@ -436,8 +448,6 @@ public class MiniBossController : MonoBehaviour
 
         GenerarOndasSuelo();
 
-        // Pausa de recuperacion tras el impacto: el boss se queda quieto un momento,
-        // como si el propio golpe contra el suelo lo dejara aturdido brevemente.
         rb.linearVelocity = Vector2.zero;
         yield return new WaitForSeconds(duracionRecuperacionSalto);
     }
