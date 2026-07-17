@@ -85,6 +85,9 @@ public class MiniBossController : MonoBehaviour
     [Header("Drop Tarjeta")]
     [SerializeField] private GameObject tarjetaPrefab;
 
+    [Header("Cámara de Arena")]
+    [SerializeField] private BossArenaCameraSwitch bossArenaCameraSwitch;
+
     public delegate void MuerteMiniBoss();
     public static event MuerteMiniBoss OnMuerte;
 
@@ -162,6 +165,11 @@ public class MiniBossController : MonoBehaviour
                 if (jugadorControlador != null)
                 {
                     jugadorControlador.BloquearControl();
+                }
+
+                if (bossArenaCameraSwitch != null)
+                {
+                    bossArenaCameraSwitch.CambiarAArena();
                 }
 
                 estadoActual = Estado.Dialogo;
@@ -654,6 +662,12 @@ public class MiniBossController : MonoBehaviour
         cicloCombateActivo = null;
 
         SoltarTarjeta();
+
+        if (bossArenaCameraSwitch != null)
+        {
+            bossArenaCameraSwitch.CambiarAEntrada();
+        }
+
         OnMuerte?.Invoke();
         StartCoroutine(MuerteConEfecto());
     }
@@ -690,6 +704,11 @@ public class MiniBossController : MonoBehaviour
     {
         if (estadoActual == Estado.Muerto) return;
         if (estadoActual == Estado.TomandoCafe) return;
+
+        if (bossArenaCameraSwitch != null)
+        {
+            bossArenaCameraSwitch.CambiarAEntrada();
+        }
 
         StopAllCoroutines();
         cicloCombateActivo = null;
