@@ -85,8 +85,8 @@ public class MiniBossController : MonoBehaviour
     [Header("Drop Tarjeta")]
     [SerializeField] private GameObject tarjetaPrefab;
 
-    [Header("Cámara de Arena")]
-    [SerializeField] private BossArenaCameraSwitch bossArenaCameraSwitch;
+    [Header("Reja de Arena")]
+    [SerializeField] private ArenaGate arenaGate;
 
     public delegate void MuerteMiniBoss();
     public static event MuerteMiniBoss OnMuerte;
@@ -167,13 +167,17 @@ public class MiniBossController : MonoBehaviour
                     jugadorControlador.BloquearControl();
                 }
 
-                if (bossArenaCameraSwitch != null)
+                if (dialogoMostrado)
                 {
-                    bossArenaCameraSwitch.CambiarAArena();
+                    estadoActual = Estado.Dialogo;
+                    Invoke(nameof(IniciarBatalla), 0.1f);
+                }
+                else
+                {
+                    estadoActual = Estado.Dialogo;
+                    Debug.Log("GUARDIA detecta al jugador.");
                 }
 
-                estadoActual = Estado.Dialogo;
-                Debug.Log("GUARDIA detecta al jugador.");
                 return;
             }
         }
@@ -201,6 +205,11 @@ public class MiniBossController : MonoBehaviour
         if (jugadorControlador != null)
         {
             jugadorControlador.DesbloquearControl();
+        }
+
+        if (arenaGate != null)
+        {
+            arenaGate.Cerrar();
         }
 
         estadoActual = Estado.Patrulla;
@@ -663,9 +672,9 @@ public class MiniBossController : MonoBehaviour
 
         SoltarTarjeta();
 
-        if (bossArenaCameraSwitch != null)
+        if (arenaGate != null)
         {
-            bossArenaCameraSwitch.CambiarAEntrada();
+            arenaGate.Abrir();
         }
 
         OnMuerte?.Invoke();
@@ -705,9 +714,9 @@ public class MiniBossController : MonoBehaviour
         if (estadoActual == Estado.Muerto) return;
         if (estadoActual == Estado.TomandoCafe) return;
 
-        if (bossArenaCameraSwitch != null)
+        if (arenaGate != null)
         {
-            bossArenaCameraSwitch.CambiarAEntrada();
+            arenaGate.Abrir();
         }
 
         StopAllCoroutines();
@@ -722,9 +731,9 @@ public class MiniBossController : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         spriteRenderer.color = colorNormal;
 
-        estadoActual = Estado.Patrulla;
+        estadoActual = Estado.TomandoCafe;
 
-        Debug.Log("GUARDIA reiniciado: vida completa, de vuelta a patrulla.");
+        Debug.Log("GUARDIA reiniciado: vida completa, de vuelta a TomandoCafe (esperando reencuentro).");
     }
 
     private void Voltear()
