@@ -85,6 +85,9 @@ public class MiniBossController : MonoBehaviour
     [Header("Drop Tarjeta")]
     [SerializeField] private GameObject tarjetaPrefab;
 
+    [Header("Reja de Arena")]
+    [SerializeField] private ArenaGate arenaGate;
+
     public delegate void MuerteMiniBoss();
     public static event MuerteMiniBoss OnMuerte;
 
@@ -164,8 +167,19 @@ public class MiniBossController : MonoBehaviour
                     jugadorControlador.BloquearControl();
                 }
 
-                estadoActual = Estado.Dialogo;
-                Debug.Log("GUARDIA detecta al jugador.");
+                if (dialogoMostrado)
+                {
+                    // Segundo encuentro en adelante: se salta el diálogo,
+                    // va directo a cerrar la reja e iniciar la batalla.
+                    estadoActual = Estado.Dialogo;
+                    Invoke(nameof(IniciarBatalla), 0.1f);
+                }
+                else
+                {
+                    estadoActual = Estado.Dialogo;
+                    Debug.Log("GUARDIA detecta al jugador.");
+                }
+
                 return;
             }
         }
@@ -193,6 +207,11 @@ public class MiniBossController : MonoBehaviour
         if (jugadorControlador != null)
         {
             jugadorControlador.DesbloquearControl();
+        }
+
+        if (arenaGate != null)
+        {
+            arenaGate.Cerrar();
         }
 
         estadoActual = Estado.Patrulla;
@@ -654,6 +673,12 @@ public class MiniBossController : MonoBehaviour
         cicloCombateActivo = null;
 
         SoltarTarjeta();
+
+        if (arenaGate != null)
+        {
+            arenaGate.Abrir();
+        }
+
         OnMuerte?.Invoke();
         StartCoroutine(MuerteConEfecto());
     }
@@ -691,6 +716,11 @@ public class MiniBossController : MonoBehaviour
         if (estadoActual == Estado.Muerto) return;
         if (estadoActual == Estado.TomandoCafe) return;
 
+        if (arenaGate != null)
+        {
+            arenaGate.Abrir();
+        }
+
         StopAllCoroutines();
         cicloCombateActivo = null;
 
@@ -703,9 +733,11 @@ public class MiniBossController : MonoBehaviour
         rb.linearVelocity = Vector2.zero;
         spriteRenderer.color = colorNormal;
 
-        estadoActual = Estado.Patrulla;
+        // dialogoMostrado NO se resetea aquí a propósito: así, el
+        // próximo encuentro salta directo al cierre de reja, sin diálogo.
+        estadoActual = Estado.TomandoCafe;
 
-        Debug.Log("GUARDIA reiniciado: vida completa, de vuelta a patrulla.");
+        Debug.Log("GUARDIA reiniciado: vida completa, de vuelta a TomandoCafe (esperando reencuentro).");
     }
 
     private void Voltear()
