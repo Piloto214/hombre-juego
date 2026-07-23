@@ -20,8 +20,6 @@ public class PlayerController : MonoBehaviour
     private int idSpeed;
     private float multiplicadorVelocidad = 1f;
 
-    // Dos banderas independientes en vez de una sola, para que el hitstun
-    // y el bloqueo por dialogo no se pisen entre si.
     private bool enHitstun = false;
     private bool bloqueoExterno = false;
     private bool PuedeControlar => !enHitstun && !bloqueoExterno;
@@ -114,11 +112,7 @@ public class PlayerController : MonoBehaviour
         SpriteRenderer sr = GetComponent<SpriteRenderer>();
         Color originalColor = sr.color;
         sr.color = Color.cyan;
-        transform.localScale = new Vector3(
-            dashDirection * 1.5f,
-            0.7f,
-            1f
-        );
+        transform.localScale = new Vector3(dashDirection * 1.5f, 0.7f, 1f);
 
         m_rigidbody2D.linearVelocity = new Vector2(dashDirection * dashSpeed, 0);
 
@@ -127,7 +121,6 @@ public class PlayerController : MonoBehaviour
         m_rigidbody2D.gravityScale = originalGravity;
         m_rigidbody2D.linearVelocity = Vector2.zero;
         sr.color = originalColor;
-
         isDashing = false;
 
         yield return new WaitForSeconds(dashCooldown);
@@ -147,9 +140,7 @@ public class PlayerController : MonoBehaviour
     private void Jump()
     {
         if (!m_gatherinput.IsJumping)
-        {
             botonSaltoLiberado = true;
-        }
 
         if (m_gatherinput.IsJumping && isGrounded && !saltando && botonSaltoLiberado)
         {
@@ -162,11 +153,8 @@ public class PlayerController : MonoBehaviour
         if (m_gatherinput.IsJumping && saltando && m_rigidbody2D.linearVelocityY > 0)
         {
             tiempoSaltando += Time.fixedDeltaTime;
-
             if (tiempoSaltando >= tiempoMaximoSalto)
-            {
                 saltando = false;
-            }
         }
 
         if (!m_gatherinput.IsJumping && saltando && m_rigidbody2D.linearVelocityY > 0)
@@ -179,9 +167,7 @@ public class PlayerController : MonoBehaviour
         }
 
         if (m_rigidbody2D.linearVelocityY < 0)
-        {
             saltando = false;
-        }
     }
 
     private void Attack()
@@ -193,22 +179,13 @@ public class PlayerController : MonoBehaviour
             foreach (Collider2D objetivo in objetivos)
             {
                 PropVida prop = objetivo.GetComponent<PropVida>();
-                if (prop != null)
-                {
-                    prop.RecibirGolpe(1);
-                }
+                if (prop != null) prop.RecibirGolpe(1);
 
                 EnemyHealth enemy = objetivo.GetComponent<EnemyHealth>();
-                if (enemy != null)
-                {
-                    enemy.TakeDamage(1);
-                }
+                if (enemy != null) enemy.TakeDamage(1);
 
                 MiniBossController miniBoss = objetivo.GetComponent<MiniBossController>();
-                if (miniBoss != null)
-                {
-                    miniBoss.RecibirDanio(1);
-                }
+                if (miniBoss != null) miniBoss.RecibirDanio(1);
             }
             m_gatherinput.IsAttacking = false;
         }
@@ -218,14 +195,7 @@ public class PlayerController : MonoBehaviour
     {
         RaycastHit2D lFootRay = Physics2D.Raycast(lFoot.position, Vector2.down, rayLength, groundLayer);
         RaycastHit2D rFootRay = Physics2D.Raycast(rFoot.position, Vector2.down, rayLength, groundLayer);
-        if (lFootRay || rFootRay)
-        {
-            isGrounded = true;
-        }
-        else
-        {
-            isGrounded = false;
-        }
+        isGrounded = lFootRay || rFootRay;
     }
 
     private void HandleShooting()
@@ -243,14 +213,46 @@ public class PlayerController : MonoBehaviour
 
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.identity);
         Bullet bulletScript = bullet.GetComponent<Bullet>();
-
-        Vector2 shootDirection = new Vector2(direction, 0);
-        bulletScript.Shoot(shootDirection);
+        Vector2 shootDir = new Vector2(direction, 0);
+        bulletScript.Shoot(shootDir);
     }
 
+    // ============================================
+    // ATURDIMIENTO — onda de silbato
+    // Reduce la velocidad del player visualmente
+    // ============================================
+    public void AplicarAturdimiento(float duracion, float multiplicador)
+    {
+        StartCoroutine(AturdimientoCoroutine(duracion, multiplicador));
+    }
+
+    private System.Collections.IEnumerator AturdimientoCoroutine(float duracion, float multiplicador)
+    {
+        multiplicadorVelocidad = multiplicador;
+
+        SpriteRenderer sr = GetComponent<SpriteRenderer>();
+        Color colorGuard = sr.color;
+        float tiempo = duracion;
+
+        // Parpadeo amarillo — distinto al rojo (contacto) y al blanco/gris (golpe normal)
+        while (tiempo > 0f)
+        {
+            sr.color = new Color(1f, 0.85f, 0f, 1f);
+            yield return new WaitForSeconds(0.08f);
+            sr.color = colorGuard;
+            yield return new WaitForSeconds(0.08f);
+            tiempo -= 0.16f;
+        }
+
+        sr.color = colorGuard;
+        multiplicadorVelocidad = 1f;
+    }
+
+    // ============================================
+    // LENTITUD
+    // ============================================
     public void AplicarLentitud(float duracion, float multiplicador)
     {
-        StopCoroutine(nameof(LentitudCoroutine));
         StartCoroutine(LentitudCoroutine(duracion, multiplicador));
     }
 
@@ -261,9 +263,11 @@ public class PlayerController : MonoBehaviour
         multiplicadorVelocidad = 1f;
     }
 
+    // ============================================
+    // HITSTUN
+    // ============================================
     public void AplicarHitstun(float duracion)
     {
-        StopCoroutine(nameof(HitstunCoroutine));
         StartCoroutine(HitstunCoroutine(duracion));
     }
 
@@ -274,11 +278,12 @@ public class PlayerController : MonoBehaviour
         enHitstun = false;
     }
 
+    // ============================================
+    // BLOQUEO EXTERNO
+    // ============================================
     public void BloquearControl()
     {
         bloqueoExterno = true;
-        // Detiene el movimiento horizontal en seco, para que no seiga
-        // deslizandose por la velocidad que ya traia antes del bloqueo.
         m_rigidbody2D.linearVelocity = new Vector2(0f, m_rigidbody2D.linearVelocityY);
     }
 
