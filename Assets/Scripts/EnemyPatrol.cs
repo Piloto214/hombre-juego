@@ -1,4 +1,4 @@
-using UnityEngine;
+ï»¿using UnityEngine;
 using System.Collections;
 
 public class EnemyPatrol : MonoBehaviour
@@ -29,7 +29,12 @@ public class EnemyPatrol : MonoBehaviour
     [Header("Dash de Remate")]
     [SerializeField] private float velocidadDash = 10f;
 
-    [Header("Daño por Contacto")]
+    [Header("Efecto Visual Dash")]
+    [SerializeField] private float intervaloGhost = 0.04f;
+    [SerializeField] private float duracionGhost = 0.12f;
+    [SerializeField] private Color colorDash = new Color(1f, 0.5f, 0f, 1f);
+
+    [Header("Daï¿½o por Contacto")]
     [SerializeField] private float cooldownDanioContacto = 1f;
 
     [Header("Tiempos de IA")]
@@ -72,6 +77,7 @@ public class EnemyPatrol : MonoBehaviour
     private bool mirandoDerecha = true;
     private bool jugadorEnRango = false;
     private bool enAtaque = false;
+    private bool efectoDashActivo = false;
 
     private float timerEstado = 0f;
     private float timerCooldownContacto = 0f;
@@ -79,6 +85,11 @@ public class EnemyPatrol : MonoBehaviour
     private Transform objetivoActual;
     private bool esperandoEnPatrulla = false;
     private float timerPausa = 0f;
+
+    // Bloqueo externo (empuje/aturdimiento aplicado desde EnemyHealth):
+    // mientras sea mayor a 0, Update() no ejecuta logica de estados,
+    // para que la velocidad de empuje no se sobreescriba de inmediato.
+    private float tiempoBloqueoExterno = 0f;
 
     // ============================================
     // START
@@ -97,6 +108,12 @@ public class EnemyPatrol : MonoBehaviour
     {
         if (timerCooldownContacto > 0f)
             timerCooldownContacto -= Time.deltaTime;
+
+        if (tiempoBloqueoExterno > 0f)
+        {
+            tiempoBloqueoExterno -= Time.deltaTime;
+            return;
+        }
 
         switch (estadoActual)
         {
@@ -235,11 +252,13 @@ public class EnemyPatrol : MonoBehaviour
     }
 
     // ============================================
-    // REMATANDO — dash rapido tras onda conectada
-    // La distancia se calcula automaticamente
+    // REMATANDO ï¿½ dash rapido tras onda conectada
     // ============================================
     void Rematar()
     {
+        if (!efectoDashActivo)
+            StartCoroutine(EfectoDash());
+
         if (jugadorDetectado == null)
         {
             estadoActual = Estado.Posicionando;
@@ -253,7 +272,6 @@ public class EnemyPatrol : MonoBehaviour
         if (direccion.x > 0 && !mirandoDerecha) Voltear();
         else if (direccion.x < 0 && mirandoDerecha) Voltear();
 
-        // Cuando llega a distancia de trapo, ejecuta el golpe
         if (distancia <= distanciaTrapo)
         {
             rb.linearVelocity = Vector2.zero;
@@ -262,7 +280,7 @@ public class EnemyPatrol : MonoBehaviour
             return;
         }
 
-        // Dash calculado automaticamente hacia el player
+        // Dash calculado automaticamente ï¿½ velocidad configurable, distancia automatica
         rb.linearVelocity = new Vector2(direccion.x * velocidadDash, rb.linearVelocity.y);
     }
 
@@ -326,7 +344,7 @@ public class EnemyPatrol : MonoBehaviour
     }
 
     // ============================================
-    // ATAQUE TRAPO — con empuje
+    // ATAQUE TRAPO ï¿½ con empuje
     // ============================================
     IEnumerator EjecutarAtaqueTrapo()
     {
@@ -359,7 +377,7 @@ public class EnemyPatrol : MonoBehaviour
     }
 
     // ============================================
-    // ATAQUE SILBATO — pasa referencia al proyectil
+    // ATAQUE SILBATO
     // ============================================
     IEnumerator EjecutarAtaqueSilbato()
     {
@@ -374,8 +392,6 @@ public class EnemyPatrol : MonoBehaviour
             Vector3 spawnPos = puntoDisparo != null ? puntoDisparo.position : transform.position;
             float dirX = mirandoDerecha ? 1f : -1f;
             GameObject onda = Instantiate(prefabOndaSilbato, spawnPos, Quaternion.identity);
-
-            // Pasa referencia a este enemigo para que notifique cuando conecte
             onda.GetComponent<OndaSilbato>()?.Inicializar(dirX, this);
         }
 
@@ -386,19 +402,65 @@ public class EnemyPatrol : MonoBehaviour
     }
 
     // ============================================
-    // NOTIFICACION DE IMPACTO — llamado desde OndaSilbato
-    // Activa el dash de remate automaticamente
+    // NOTIFICACION DE IMPACTO ï¿½ llamado desde OndaSilbato
     // ============================================
     public void NotificarImpactoOnda(Transform posicionPlayer)
     {
         jugadorDetectado = posicionPlayer;
         jugadorEnRango = true;
         estadoActual = Estado.Rematando;
-        Debug.Log("Onda impacto! Entrando a Rematando - dash automatico");
+        Debug.Log("Onda impacto! Entrando a Rematando");
     }
 
     // ============================================
-    // DAÑO POR CONTACTO CORPORAL
+    // EFECTO VISUAL DASH ï¿½ trail naranja
+    // ============================================
+    IEnumerator EfectoDash()
+    {
+        efectoDashActivo = true;
+        Color colorOriginal = sprite.color;
+        sprite.color = colorDash;
+
+        while (estadoActual == Estado.Rematando)
+        {
+            SpawnGhost();
+            yield return new WaitForSeconds(intervaloGhost);
+        }
+
+        sprite.color = colorOriginal;
+        efectoDashActivo = false;
+    }
+
+    void SpawnGhost()
+    {
+        GameObject ghost = new GameObject("Ghost_Dash");
+        ghost.transform.position = sprite.transform.position;
+        ghost.transform.localScale = sprite.transform.localScale;
+
+        SpriteRenderer ghostSR = ghost.AddComponent<SpriteRenderer>();
+        ghostSR.sprite = sprite.sprite;
+        ghostSR.sortingOrder = sprite.sortingOrder - 1;
+        ghostSR.color = new Color(colorDash.r, colorDash.g, colorDash.b, 0.4f);
+
+        StartCoroutine(FadeGhost(ghostSR, ghost));
+    }
+
+    IEnumerator FadeGhost(SpriteRenderer sr, GameObject ghost)
+    {
+        float tiempo = duracionGhost;
+
+        while (tiempo > 0f && sr != null)
+        {
+            sr.color = new Color(sr.color.r, sr.color.g, sr.color.b, (tiempo / duracionGhost) * 0.4f);
+            tiempo -= Time.deltaTime;
+            yield return null;
+        }
+
+        if (ghost != null) Destroy(ghost);
+    }
+
+    // ============================================
+    // DAï¿½O POR CONTACTO CORPORAL
     // ============================================
     void OnCollisionStay2D(Collision2D collision)
     {
@@ -420,6 +482,17 @@ public class EnemyPatrol : MonoBehaviour
         yaDetectoJugador = true;
         estadoActual = Estado.Alerta;
         timerEstado = tiempoReaccion;
+    }
+
+    // ============================================
+    // BLOQUEO EXTERNO (llamado desde EnemyHealth al
+    // aplicar empuje o aturdimiento por el golpe del
+    // player). Mientras dure, este script no toca
+    // rb.linearVelocity, dejando que el empuje se vea.
+    // ============================================
+    public void BloquearControl(float duracion)
+    {
+        tiempoBloqueoExterno = Mathf.Max(tiempoBloqueoExterno, duracion);
     }
 
     // ============================================
